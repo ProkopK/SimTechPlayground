@@ -24,7 +24,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
+      - run: npm run check # typecheck + simulation checks
       - run: npm run build
       - uses: actions/upload-pages-artifact@v5
         with:
