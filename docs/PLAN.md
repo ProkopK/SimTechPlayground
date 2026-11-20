@@ -190,13 +190,13 @@ Each step ends with: `npm run build` green, `npx tsc --noEmit` green, no console
 - [x] **3.3 Phase check:** Playwright (WebGL in headless Chromium/Firefox), orbit via mouse and touch; verify `three` is in its own chunk, not loaded by landing page or 2D sims; push; verify deployment.
 
 ### Phase 4: Contributability
-- [ ] **4.1** `README.md` (what it is, live link, quick start, project structure).
-- [ ] **4.2** `CONTRIBUTING.md` (add a 2D and a 3D sim step by step, contract reference, JS vs TS, Markdown + formulas, thumbnails via `T` key, performance tips: typed arrays, no allocations in `step`, compute metrics in `step`; text guidelines: German first, for high school students, short, link to program; pre-PR checklist).
-- [ ] **4.3** `docs/MAINTAINERS.md` (yearly handover: deployment and Pages settings, `BASE_PATH`, reviewing sim PRs, updating dependencies, where things live).
-- [ ] **4.4** `CLAUDE.md` (languages per §0, contract rules, way of working per §12, plan/fine-tuning files).
-- [ ] **4.5** English: complete `en.json` UI strings, English `title`/`description`/param labels in all `meta.json`/params (explanation texts stay German-only for now → FINETUNING).
-- [ ] **4.6 Template walkthrough:** on a throwaway branch, create a new sim by copying `_template` and following only CONTRIBUTING; record friction, fix docs/template on `main`, note the result in PLAN.md (the demo sim is not merged).
-- [ ] **4.7 Final DoD check (brief §11)** in Chromium + Firefox desktop and mobile emulation, all sims; push; verify deployment.
+- [x] **4.1** `README.md` (what it is, live link, quick start, project structure).
+- [x] **4.2** `CONTRIBUTING.md` (add a 2D and a 3D sim step by step, contract reference, JS vs TS, Markdown + formulas, thumbnails via `T` key, performance tips: typed arrays, no allocations in `step`, compute metrics in `step`; text guidelines: German first, for high school students, short, link to program; pre-PR checklist).
+- [x] **4.3** `docs/MAINTAINERS.md` (yearly handover: deployment and Pages settings, `BASE_PATH`, reviewing sim PRs, updating dependencies, where things live).
+- [x] **4.4** `CLAUDE.md` (languages per §0, contract rules, way of working per §12, plan/fine-tuning files).
+- [x] **4.5** English: complete `en.json` UI strings, English `title`/`description`/param labels in all `meta.json`/params (explanation texts stay German-only for now → FINETUNING).
+- [x] **4.6 Template walkthrough:** on a throwaway branch, create a new sim by copying `_template` and following only CONTRIBUTING; record friction, fix docs/template on `main`, note the result in PLAN.md (the demo sim is not merged).
+- [x] **4.7 Final DoD check (brief §11)** in Chromium + Firefox desktop and mobile emulation, all sims; push; verify deployment.
 
 ### Afterwards
 - Fine-tuning items from `docs/FINETUNING.md`, in an order agreed with the team.
@@ -230,3 +230,8 @@ Each step ends with: `npm run build` green, `npx tsc --noEmit` green, no console
   - Default number of trajectories is 3 (clearer than 5 for the butterfly effect).
   - `preserveDrawingBuffer` is enabled only in dev mode, so the thumbnail key (T) also works for 3D.
   - `build.chunkSizeWarningLimit` raised to 800 kB: the Three.js chunk (~190 kB gzipped) is expected and only loaded by 3D simulations.
+- 2026-11-20 (Phase 4): Template walkthrough result (4.6). A heat-conduction simulation was created on the throwaway branch `sim/heat-walkthrough` by copying `_template` and following only CONTRIBUTING.md: copy, edit `meta.json`/`sim.js`/`info.de.md`, thumbnail via T, `npm run check`, tile appears automatically. It worked end to end in about a quarter of an hour. Two problems were found and fixed on `main`:
+  - An unmodified copy passed all checks and would have published a duplicate tile with the template's texts and thumbnail → `check-sims` now reports files left unchanged from the template.
+  - `metrics`, button `action`s and preset `state` received the state typed as `any`, so ordinary code like `s.T.reduce((a, b) => a + b)` failed the strict type check in `@ts-check` files → these callbacks are now typed with the simulation's `State`.
+  - The demo simulation itself was not merged (branch kept locally only).
+- 2026-11-20 (Phase 4): With complete English UI strings, browsers set to English now show the English UI by default (language derived from the browser, as specified). Booth reminder added to MAINTAINERS.md.

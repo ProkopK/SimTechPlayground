@@ -87,5 +87,6 @@ GitHub Actions versions (`actions/checkout@v…` etc. in `.github/workflows/`) a
 
 - [ ] Open the live site on the booth laptop, the projector setup and a phone; click through all simulations
 - [ ] Fullscreen mode works on the projector; set the browser zoom so the controls are readable
+- [ ] The language follows the browser language (English browsers get English UI); click DE/EN once on each booth device, the choice is remembered
 - [ ] Have a fallback without internet: `npm run build && npm run preview` on the laptop serves the site locally
 - [ ] QR code to the live URL on the booth material
