@@ -66,19 +66,21 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   renderTexts();
   const offLang = onLangChange(renderTexts);
 
-  entry.loadSim().then(
-    (sim) => {
+  entry
+    .loadSim()
+    .then(async (sim) => {
       if (disposed) return;
       stage.replaceChildren();
-      runner = start(sim, stage);
+      const started = await start(sim, stage);
+      if (disposed) return started.dispose(); // left the page while Three.js was loading
+      runner = started;
       metrics = createMetrics(metricsSlot, runner);
       renderTexts();
-    },
-    (error) => {
+    })
+    .catch((error) => {
       console.error(error);
       stage.replaceChildren(el("p", { class: "message message--error" }, t("sim.loadFailed")));
-    },
-  );
+    });
 
   const onKey = (e: KeyboardEvent) => {
     // Dev helper for contributors: press T to download a thumbnail of the running simulation.
@@ -101,7 +103,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   };
 }
 
-function start(sim: Simulation, stage: HTMLElement): Runner {
+async function start(sim: Simulation, stage: HTMLElement): Promise<Runner> {
   stage.style.setProperty("--world-aspect", sim.renderer === "2d" ? `${sim.world.width} / ${sim.world.height}` : "4 / 3");
 
   // Crash overlay: shown instead of a frozen or blank simulation.
@@ -115,7 +117,13 @@ function start(sim: Simulation, stage: HTMLElement): Runner {
   crash.append(crashReset);
   stage.append(crash);
 
-  if (sim.renderer !== "2d") throw new Error("3D simulations are not supported yet");
+  if (sim.renderer === "3d") {
+    // Three.js and its view module are loaded only for 3D simulations.
+    const { createThreeView } = await import("../runner/three");
+    const view = await createThreeView(stage, sim);
+    return finishRunner(createRunner(sim, view, () => (crash.hidden = false)), crash, crashReset);
+  }
+
   const canvas = createCanvas2D(stage, sim);
   let detachPointer = () => {};
   const view: SimView = {
@@ -128,6 +136,10 @@ function start(sim: Simulation, stage: HTMLElement): Runner {
 
   const runner = createRunner(sim, view, () => (crash.hidden = false));
   detachPointer = attachPointer(canvas.canvas, canvas.toWorld, runner.pointer);
+  return finishRunner(runner, crash, crashReset);
+}
+
+function finishRunner(runner: Runner, crash: HTMLElement, crashReset: HTMLElement): Runner {
   crashReset.addEventListener("click", () => {
     crash.hidden = true;
     runner.reset();
