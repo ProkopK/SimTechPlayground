@@ -230,7 +230,7 @@ Each step ends with: `npm run build` green, `npx tsc --noEmit` green, no console
   - Default number of trajectories is 3 (clearer than 5 for the butterfly effect).
   - `preserveDrawingBuffer` is enabled only in dev mode, so the thumbnail key (T) also works for 3D.
   - `build.chunkSizeWarningLimit` raised to 800 kB: the Three.js chunk (~190 kB gzipped) is expected and only loaded by 3D simulations.
-- 2026-11-20 (Phase 4): Template walkthrough result (4.6). A heat-conduction simulation was created on the throwaway branch `sim/heat-walkthrough` by copying `_template` and following only CONTRIBUTING.md: copy, edit `meta.json`/`sim.js`/`info.de.md`, thumbnail via T, `npm run check`, tile appears automatically. It worked end to end in about a quarter of an hour. Two problems were found and fixed on `main`:
+- 2026-11-20 (Phase 4): Template walkthrough result (4.6). A heat-conduction simulation was created on the throwaway branch `sim/heat-walkthrough` by copying `_template` and following only CONTRIBUTING.md: copy, edit `meta.json`/`sim.js`/`info.de.md`, thumbnail via T, `npm run check`, tile appears automatically. It worked end to end. Two problems were found and fixed on `main`:
   - An unmodified copy passed all checks and would have published a duplicate tile with the template's texts and thumbnail → `check-sims` now reports files left unchanged from the template.
   - `metrics`, button `action`s and preset `state` received the state typed as `any`, so ordinary code like `s.T.reduce((a, b) => a + b)` failed the strict type check in `@ts-check` files → these callbacks are now typed with the simulation's `State`.
   - The demo simulation itself was not merged (branch kept locally only).
