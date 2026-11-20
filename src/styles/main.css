@@ -342,3 +342,28 @@ button {
   overflow: hidden;
   border: 1px solid var(--color-border);
 }
+
+/* ---------- Explanation text ---------- */
+.sim-info {
+  margin-top: var(--space-4);
+}
+
+.sim-info h2 {
+  font-size: 1.15rem;
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.sim-info h2:first-child {
+  margin-top: 0;
+}
+
+.sim-info p,
+.sim-info li {
+  font-size: 0.95rem;
+}
+
+.math-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--space-1) 0;
+}

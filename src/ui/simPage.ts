@@ -1,4 +1,4 @@
-import { onLangChange, t, text } from "../i18n";
+import { getLang, onLangChange, t, text } from "../i18n";
 import { getSimulation } from "../registry";
 import { createCanvas2D, downloadThumbnail } from "../runner/canvas2d";
 import { attachPointer } from "../runner/pointer";
@@ -6,6 +6,7 @@ import { createRunner, type Runner, type SimView } from "../runner/runner";
 import type { Simulation } from "../types";
 import { createControls } from "./controls";
 import { el } from "./dom";
+import { renderMarkdown } from "./info";
 import { createTopbar } from "./topbar";
 
 /** Renders the page for one simulation into `root`. Returns a cleanup function. */
@@ -24,7 +25,8 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   const title = el("h1", { class: "sim-title" });
   const stage = el("div", { class: "sim-stage" }, el("p", { class: "message" }, t("sim.loading")));
   const controlsSlot = el("div");
-  const side = el("aside", { class: "sim-side" }, title, controlsSlot);
+  const infoSlot = el("section", { class: "sim-info" });
+  const side = el("aside", { class: "sim-side" }, title, controlsSlot, infoSlot);
   const topbarSlot = el("div", { class: "topbar-slot" });
   root.replaceChildren(topbarSlot, el("main", { class: "sim-page" }, stage, side));
 
@@ -39,6 +41,20 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
     document.title = `${text(entry!.meta.title)} · ${t("site.title")}`;
     controls?.dispose();
     if (runner) controls = createControls(controlsSlot, runner);
+    renderInfo();
+  }
+
+  let infoRequest = 0;
+  async function renderInfo() {
+    const request = ++infoRequest; // ignore results of outdated requests (fast language switching)
+    try {
+      const html = await renderMarkdown(await entry!.loadInfo(getLang()));
+      if (request !== infoRequest || disposed) return;
+      infoSlot.innerHTML = html;
+      infoSlot.prepend(el("h2", {}, t("sim.explanation")));
+    } catch (error) {
+      console.error(error);
+    }
   }
   renderTexts();
   const offLang = onLangChange(renderTexts);
