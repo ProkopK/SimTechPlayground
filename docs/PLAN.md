@@ -185,9 +185,9 @@ Each step ends with: `npm run build` green, `npx tsc --noEmit` green, no console
 - [x] **2.10 Phase check:** Playwright on all three sims incl. touch slingshot and obstacle drawing, fullscreen; push; verify deployment.
 
 ### Phase 3: 3D path
-- [ ] **3.1 3D runner:** `src/runner/three.ts` dynamically imports `three` and `OrbitControls`; renderer (DPR capped at 2), camera, ambient + directional light, controls with touch, optional idle auto-rotate (stops on interaction, resumes after ~5 s); resize; reset disposes geometries/materials and calls `setup3d` again; leaving the page calls `renderer.dispose()` and `forceContextLoss()`.
-- [ ] **3.2 Lorenz:** `simulations/lorenz/`: K trajectories (1–10, `resetOnChange`) starting 1e-5 apart, RK4 from `src/lib`, per-trajectory ring buffer → `THREE.Line` with `BufferGeometry` and vertex colors fading along the trail; params σ, ρ, β (10, 28, 8/3), trajectory count, trail length; metric: distance between first two trajectories (shows exponential divergence); `info.de.md` (equations, deterministic chaos, weather), thumbnail.
-- [ ] **3.3 Phase check:** Playwright (WebGL in headless Chromium/Firefox), orbit via mouse and touch; verify `three` is in its own chunk, not loaded by landing page or 2D sims; push; verify deployment.
+- [x] **3.1 3D runner:** `src/runner/three.ts` dynamically imports `three` and `OrbitControls`; renderer (DPR capped at 2), camera, ambient + directional light, controls with touch, optional idle auto-rotate (stops on interaction, resumes after ~5 s); resize; reset disposes geometries/materials and calls `setup3d` again; leaving the page calls `renderer.dispose()` and `forceContextLoss()`.
+- [x] **3.2 Lorenz:** `simulations/lorenz/`: K trajectories (1–10, `resetOnChange`) starting 1e-5 apart, RK4 from `src/lib`, per-trajectory ring buffer → `THREE.Line` with `BufferGeometry` and vertex colors fading along the trail; params σ, ρ, β (10, 28, 8/3), trajectory count, trail length; metric: distance between first two trajectories (shows exponential divergence); `info.de.md` (equations, deterministic chaos, weather), thumbnail.
+- [x] **3.3 Phase check:** Playwright (WebGL in headless Chromium/Firefox), orbit via mouse and touch; verify `three` is in its own chunk, not loaded by landing page or 2D sims; push; verify deployment.
 
 ### Phase 4: Contributability
 - [ ] **4.1** `README.md` (what it is, live link, quick start, project structure).
@@ -225,3 +225,8 @@ Each step ends with: `npm run build` green, `npx tsc --noEmit` green, no console
   - Gravity: the cluster preset got velocity dispersion so it doesn't clump instantly; the camera "follows" the center of mass only in drawing/pointer mapping (physics stays in absolute coordinates).
   - Sparklines use a minimum vertical span of 1% of the value, so numerical noise in conserved quantities looks flat.
   - `check-sims` prints ms/step and CPU time per second at speed ×1 per simulation, which helps contributors spot slow simulations.
+- 2026-11-20 (Phase 3): Deviations while implementing:
+  - Lorenz trajectories start 10⁻⁴ apart (not 10⁻⁵) and run at 400 steps/s (2 time units per second): with 10⁻⁵ at 1.2 units/s the separation took over 20 s, too long for a booth; now they run together for ~6 s and are fully separated after ~11 s. Default trail length 3000 points.
+  - Default number of trajectories is 3 (clearer than 5 for the butterfly effect).
+  - `preserveDrawingBuffer` is enabled only in dev mode, so the thumbnail key (T) also works for 3D.
+  - `build.chunkSizeWarningLimit` raised to 800 kB: the Three.js chunk (~190 kB gzipped) is expected and only loaded by 3D simulations.

@@ -35,3 +35,9 @@ Things noticed during the work that are not part of the proof of concept. Add it
 - [ ] Flow costs ~120 ms CPU per second on a fast desktop at 150×60; measure on a real mid-range phone (WebGL item above if too slow)
 - [ ] Gravity: show the launch speed while dragging, and optionally a predicted trajectory
 - [ ] Thumbnails of wide simulations are cropped to 4:3 on the tiles; consider per-simulation focus point
+
+## Noticed during Phase 3
+
+- [ ] Lorenz lines are 1 px wide (WebGL limitation); thicker lines (`Line2` from three/addons) would read better on a projector
+- [ ] Lorenz: start on the attractor instead of (1, 1, 1) to skip the first seconds of spiraling in
+- [ ] Optional 3D pointer input (`onPointer3d` with a ray) if a future 3D simulation needs it (e.g. picking an orbital)
