@@ -1,0 +1,9 @@
+{
+  "title": { "de": "Gravitation: Planeten selbst starten", "en": "Gravity: launch your own planets" },
+  "description": {
+    "de": "Schleudere Himmelskörper in ein Sonnensystem und beobachte, wie sie kreisen, kollidieren oder davonfliegen.",
+    "en": "Fling bodies into a solar system and watch them orbit, collide or escape."
+  },
+  "tags": ["mechanics"],
+  "order": 20
+}
