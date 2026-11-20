@@ -1,0 +1,9 @@
+{
+  "title": { "de": "Windkanal: Wirbel hinter Hindernissen", "en": "Wind tunnel: vortices behind obstacles" },
+  "description": {
+    "de": "Zeichne Hindernisse in eine Strömung und sieh zu, wie sich dahinter Wirbel ablösen.",
+    "en": "Draw obstacles into a flow and watch vortices shed behind them."
+  },
+  "tags": ["fluids"],
+  "order": 30
+}
