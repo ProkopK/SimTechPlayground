@@ -78,9 +78,12 @@ function drawSparkline(canvas: HTMLCanvasElement, values: number[]) {
     if (v > max) max = v;
   }
   if (min === Infinity) return;
-  if (max - min < 1e-9) {
-    min -= 0.5;
-    max += 0.5;
+  // Minimum span of 1% of the magnitude, so tiny numerical noise doesn't look like a big wave.
+  const span = Math.max(1e-9, 0.01 * Math.max(Math.abs(min), Math.abs(max)));
+  if (max - min < span) {
+    const mid = (min + max) / 2;
+    min = mid - span / 2;
+    max = mid + span / 2;
   }
   const pad = 2 * dpr;
   ctx.strokeStyle = getComputedStyle(canvas).color;
