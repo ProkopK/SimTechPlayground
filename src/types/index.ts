@@ -51,16 +51,16 @@ export interface BooleanParam extends ParamBase {
 }
 
 /** Button. `action` may modify `state` in place or return a new state. */
-export interface ButtonParam {
+export interface ButtonParam<S = any> {
   type: "button";
   label: Text;
-  action(state: any, params: Values): any;
+  action(state: S, params: Values): S | void;
 }
 
-export type Param = RangeParam | SelectParam | BooleanParam | ButtonParam;
+export type Param<S = any> = RangeParam | SelectParam | BooleanParam | ButtonParam<S>;
 
 /** A named scenario, shown in a "Szenario" dropdown. */
-export interface Preset {
+export interface Preset<S = any> {
   label: Text;
   /** Parameter values to apply first. */
   params?: Values;
@@ -68,14 +68,14 @@ export interface Preset {
    * Optional: build a specific initial state for this scenario.
    * Without it, the simulation is reset only if a `resetOnChange` parameter changed.
    */
-  state?(params: Values): any;
+  state?(params: Values): S;
 }
 
 /** A number shown below the simulation, optionally with a small time-series plot. */
-export interface Metric {
+export interface Metric<S = any> {
   label: Text;
   /** Must be cheap. Compute expensive values in `step()` and store them on the state. */
-  value(state: any, params: Values): number;
+  value(state: S, params: Values): number;
   /** Show a sparkline (default true). */
   plot?: boolean;
   /** Decimal places shown (default 3). */
@@ -112,9 +112,9 @@ export interface Three3D {
 }
 
 interface SimulationBase<S> {
-  params?: Record<string, Param>;
-  presets?: Record<string, Preset>;
-  metrics?: Record<string, Metric>;
+  params?: Record<string, Param<S>>;
+  presets?: Record<string, Preset<S>>;
+  metrics?: Record<string, Metric<S>>;
   /** Fixed time step passed to `step()` (default 1). */
   dt?: number;
   /** How many steps per real second at speed ×1 (default 60). Independent of the frame rate. */
