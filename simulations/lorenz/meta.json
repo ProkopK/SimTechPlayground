@@ -1,0 +1,9 @@
+{
+  "title": { "de": "Lorenz-Attraktor: Der Schmetterlingseffekt", "en": "Lorenz attractor: the butterfly effect" },
+  "description": {
+    "de": "Fast gleiche Startpunkte, völlig verschiedene Wege: deterministisches Chaos in 3D zum Drehen.",
+    "en": "Almost identical starting points, completely different paths: deterministic chaos in 3D."
+  },
+  "tags": ["chaos"],
+  "order": 40
+}
