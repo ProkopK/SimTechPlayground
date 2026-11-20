@@ -8,21 +8,19 @@
 import type { Lang } from "./i18n";
 import type { SimMeta, Simulation } from "./types";
 
-const EXCLUDE = "!/simulations/_*/**";
-
-const metas = import.meta.glob<SimMeta>(["/simulations/*/meta.json", EXCLUDE], {
+const metas = import.meta.glob<SimMeta>(["/simulations/*/meta.json", "!/simulations/_*/**"], {
   eager: true,
   import: "default",
 });
-const thumbnails = import.meta.glob<string>(["/simulations/*/thumbnail.{webp,png}", EXCLUDE], {
+const thumbnails = import.meta.glob<string>(["/simulations/*/thumbnail.{webp,png}", "!/simulations/_*/**"], {
   eager: true,
   query: "?url",
   import: "default",
 });
-const modules = import.meta.glob<Simulation>(["/simulations/*/sim.{js,ts}", EXCLUDE], {
+const modules = import.meta.glob<Simulation>(["/simulations/*/sim.{js,ts}", "!/simulations/_*/**"], {
   import: "default",
 });
-const infos = import.meta.glob<string>(["/simulations/*/info.*.md", EXCLUDE], {
+const infos = import.meta.glob<string>(["/simulations/*/info.*.md", "!/simulations/_*/**"], {
   query: "?raw",
   import: "default",
 });

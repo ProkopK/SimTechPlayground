@@ -1,17 +1,17 @@
 import "./styles/main.css";
-import { onLangChange, t } from "./i18n";
-import { createLangSwitch } from "./ui/langSwitch";
+import { parseRoute } from "./router";
+import { mountLanding } from "./ui/landing";
+import { mountSimPage } from "./ui/simPage";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
+let cleanup: () => void = () => {};
 
-function render() {
-  app.replaceChildren();
-  const h1 = document.createElement("h1");
-  h1.textContent = t("site.title");
-  const p = document.createElement("p");
-  p.textContent = t("site.intro");
-  app.append(h1, p, createLangSwitch());
+function navigate() {
+  cleanup();
+  const route = parseRoute(location.hash);
+  cleanup = route.page === "sim" ? mountSimPage(app, route.id) : mountLanding(app);
+  window.scrollTo(0, 0);
 }
 
-onLangChange(render);
-render();
+window.addEventListener("hashchange", navigate);
+navigate();
