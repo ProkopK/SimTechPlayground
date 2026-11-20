@@ -6,6 +6,7 @@ import { createRunner, type Runner, type SimView } from "../runner/runner";
 import type { Simulation } from "../types";
 import { createControls } from "./controls";
 import { el } from "./dom";
+import { createFullscreen } from "./fullscreen";
 import { renderMarkdown } from "./info";
 import { createMetrics } from "./metrics";
 import { createTopbar } from "./topbar";
@@ -30,7 +31,9 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   const infoSlot = el("section", { class: "sim-info" });
   const side = el("aside", { class: "sim-side" }, title, controlsSlot, metricsSlot, infoSlot);
   const topbarSlot = el("div", { class: "topbar-slot" });
-  root.replaceChildren(topbarSlot, el("main", { class: "sim-page" }, stage, side));
+  const page = el("main", { class: "sim-page" }, stage, side);
+  root.replaceChildren(topbarSlot, page);
+  const fullscreen = createFullscreen(page);
 
   let runner: Runner | undefined;
   let controls: { dispose(): void } | undefined;
@@ -43,7 +46,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
     title.textContent = text(entry!.meta.title);
     document.title = `${text(entry!.meta.title)} · ${t("site.title")}`;
     controls?.dispose();
-    if (runner) controls = createControls(controlsSlot, runner);
+    if (runner) controls = createControls(controlsSlot, runner, [fullscreen.button()]);
     metrics?.relabel();
     renderInfo();
   }
@@ -90,6 +93,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
     disposed = true;
     offLang();
     window.removeEventListener("keydown", onKey);
+    fullscreen.dispose();
     controls?.dispose();
     metrics?.dispose();
     runner?.dispose();

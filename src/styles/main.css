@@ -400,3 +400,59 @@ button {
   background: var(--color-surface-2);
   border-radius: 6px;
 }
+
+/* ---------- Fullscreen / projector mode ---------- */
+.sim-page.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: block;
+  width: 100%;
+  height: 100dvh;
+  background: var(--color-canvas-bg);
+}
+
+.is-fullscreen .sim-stage {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+  max-height: none;
+}
+
+.is-fullscreen .sim-side {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: min(340px, calc(100% - 2 * var(--space-3)));
+  max-height: calc(100% - 2 * var(--space-3));
+  padding: var(--space-2);
+  border: none;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.is-fullscreen .sim-title,
+.is-fullscreen .sim-info {
+  display: none;
+}
+
+.is-fullscreen .sim-toolbar {
+  margin-bottom: var(--space-2);
+}
+
+.is-fullscreen .sim-metrics h2 {
+  display: none;
+}
+
+/* Phones in fullscreen: controls at the bottom, simulation stays visible above. */
+@media (max-width: 600px) {
+  .is-fullscreen .sim-side {
+    top: auto;
+    bottom: var(--space-2);
+    right: var(--space-2);
+    left: var(--space-2);
+    width: auto;
+    max-height: 45%;
+  }
+}

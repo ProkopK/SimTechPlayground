@@ -7,7 +7,7 @@ import { t, text } from "../i18n";
 import type { Runner } from "../runner/runner";
 import { el } from "./dom";
 
-export function createControls(container: HTMLElement, runner: Runner) {
+export function createControls(container: HTMLElement, runner: Runner, extraButtons: HTMLElement[] = []) {
   const { sim, values } = runner;
   const root = el("div", { class: "sim-controls" });
   container.append(root);
@@ -22,7 +22,7 @@ export function createControls(container: HTMLElement, runner: Runner) {
   });
   resetBtn.addEventListener("click", () => runner.reset());
   updatePause();
-  root.append(el("div", { class: "sim-toolbar" }, pauseBtn, resetBtn));
+  root.append(el("div", { class: "sim-toolbar" }, pauseBtn, resetBtn, ...extraButtons));
 
   const gui = new GUI({ container: root, title: t("sim.controls") });
   const refresh = () => gui.controllersRecursive().forEach((c) => c.updateDisplay());
