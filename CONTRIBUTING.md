@@ -37,7 +37,7 @@ Open the URL that `npm run dev` prints (http://localhost:5173/SimTechPlayground/
    ```bash
    cp -r simulations/_template simulations/heat-equation
    ```
-   Folders starting with `_` are hidden on the website, so your copy appears as soon as it has a new name.
+   Folders starting with `_` are hidden on the website, so your copy appears as soon as it has a new name. The copy still contains the template's texts and thumbnail; `npm run check` reports them until you have replaced all of them.
 3. **Edit `meta.json`**: title, one-sentence description, topic tags (see [tags](#tags)).
 4. **Edit `sim.js`**: replace the bouncing balls with your simulation. The template is commented line by line; section 3 below explains every field.
 5. **Write `info.de.md`**: the German explanation text (see section 8). `info.en.md` is optional.

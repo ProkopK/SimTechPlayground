@@ -1,7 +1,8 @@
 // @ts-check
 /**
  * Checks every folder in simulations/ (including the template):
- *   - required files exist (sim.js|ts, meta.json, info.de.md, thumbnail)
+ *   - required files exist (sim.js|ts, meta.json, info.de.md, thumbnail) and are not
+ *     unchanged copies from the template
  *   - meta.json and the simulation object follow the contract (src/types/index.ts)
  *   - smoke test without a browser: init + steps, every preset, button and pointer
  *     handler run without exceptions, and all metrics stay finite numbers
@@ -15,6 +16,7 @@ import { createServer } from "vite";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const SIM_DIR = join(ROOT, "simulations");
+const TEMPLATE_DIR = join(SIM_DIR, "_template");
 const SMOKE_STEPS = 200;
 const THUMBNAIL_WARN_BYTES = 50 * 1024;
 
@@ -85,6 +87,15 @@ try {
       } catch (e) {
         error("meta.json", `invalid JSON: ${/** @type {Error} */ (e).message}`);
       }
+    }
+
+    // --- Leftovers from copying the template (they would publish a duplicate tile) ---
+    if (!folder.startsWith("_")) {
+      const same = (/** @type {string} */ name) =>
+        has(name) && existsSync(join(TEMPLATE_DIR, name)) && readFileSync(join(dir, name)).equals(readFileSync(join(TEMPLATE_DIR, name)));
+      if (same("meta.json")) error("template", "meta.json is still the template's; give your simulation a title and description");
+      if (same("info.de.md")) error("template", "info.de.md is still the template's text");
+      if (same("thumbnail.webp")) error("template", "thumbnail.webp is still the template's; press T on your running simulation");
     }
 
     if (simFiles.length !== 1) continue;
