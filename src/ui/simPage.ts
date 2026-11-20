@@ -3,6 +3,7 @@ import { getSimulation } from "../registry";
 import { createCanvas2D, downloadThumbnail } from "../runner/canvas2d";
 import { createRunner, type Runner, type SimView } from "../runner/runner";
 import type { Simulation } from "../types";
+import { createControls } from "./controls";
 import { el } from "./dom";
 import { createTopbar } from "./topbar";
 
@@ -21,17 +22,22 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
 
   const title = el("h1", { class: "sim-title" });
   const stage = el("div", { class: "sim-stage" }, el("p", { class: "message" }, t("sim.loading")));
-  const side = el("aside", { class: "sim-side" }, title);
+  const controlsSlot = el("div");
+  const side = el("aside", { class: "sim-side" }, title, controlsSlot);
   const topbarSlot = el("div", { class: "topbar-slot" });
   root.replaceChildren(topbarSlot, el("main", { class: "sim-page" }, stage, side));
 
   let runner: Runner | undefined;
+  let controls: { dispose(): void } | undefined;
   let disposed = false;
 
+  /** (Re)build everything that shows translated text; the running simulation is kept. */
   function renderTexts() {
     topbarSlot.replaceChildren(createTopbar(back()));
     title.textContent = text(entry!.meta.title);
     document.title = `${text(entry!.meta.title)} · ${t("site.title")}`;
+    controls?.dispose();
+    if (runner) controls = createControls(controlsSlot, runner);
   }
   renderTexts();
   const offLang = onLangChange(renderTexts);
@@ -41,6 +47,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
       if (disposed) return;
       stage.replaceChildren();
       runner = start(sim, stage);
+      renderTexts();
     },
     (error) => {
       console.error(error);
@@ -61,6 +68,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
     disposed = true;
     offLang();
     window.removeEventListener("keydown", onKey);
+    controls?.dispose();
     runner?.dispose();
     document.title = t("site.title");
   };
@@ -93,6 +101,7 @@ function start(sim: Simulation, stage: HTMLElement): Runner {
     runner.reset();
   });
 
-  if (import.meta.env.DEV) (window as any).__simSteps = () => runner.stepCount;
+  // Dev-only hooks for automated browser checks.
+  if (import.meta.env.DEV) Object.assign(window, { __runner: runner, __simSteps: () => runner.stepCount });
   return runner;
 }
