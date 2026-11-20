@@ -1,0 +1,9 @@
+{
+  "title": { "de": "Vorlage: Springende Bälle", "en": "Template: bouncing balls" },
+  "description": {
+    "de": "Ein Satz, der neugierig macht.",
+    "en": "One sentence that makes people curious."
+  },
+  "tags": ["demo"],
+  "order": 100
+}
