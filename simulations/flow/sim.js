@@ -8,6 +8,8 @@
  * 9 directions. Every step they (1) stream to the neighboring cell and (2) collide, i.e.
  * relax towards the local equilibrium. Density and velocity follow from these populations.
  * All quantities are in lattice units (cell size 1, time step 1).
+ *
+ * Draw obstacles with the mouse or a finger (right mouse button or the eraser toggle erases).
  */
 import { blueWhiteRed, drawGrid, viridis } from "../../src/lib";
 
@@ -25,6 +27,7 @@ const MIRROR_Y = [0, 1, 4, 3, 2, 8, 7, 6, 5]; // y component flipped (free-slip 
 const MAX_INFLOW = 0.12;
 const MIN_VISCOSITY = 0.004; // relaxation time τ = 3ν + 0.5 ≥ 0.512
 const NAN_CHECK_EVERY = 50;
+const TRACERS = 800;
 
 /**
  * @typedef {object} State
@@ -39,6 +42,8 @@ const NAN_CHECK_EVERY = 50;
  * @property {Float64Array} fin     scratch: incoming populations of one cell
  * @property {number} size          obstacle height in cells (for the Reynolds number)
  * @property {number} steps
+ * @property {Float32Array} tracers particle positions in cell units [x0, y0, x1, y1, ...]
+ * @property {{ x: number, y: number } | null} brush  last pointer position while drawing
  */
 
 /** @type {import("../../src/types").Simulation2D<State>} */
@@ -68,6 +73,14 @@ export default {
       value: "200", mobileValue: "150", resetOnChange: true,
       label: { de: "Auflösung", en: "Resolution" },
     },
+    erase: { type: "boolean", value: false, label: { de: "Radieren statt Zeichnen", en: "Erase instead of draw" } },
+    tracers: { type: "boolean", value: true, label: { de: "Rauchteilchen", en: "Smoke particles" } },
+  },
+
+  presets: {
+    cylinder: { label: { de: "Zylinder", en: "Cylinder" }, state: (p) => createState(p, "cylinder") },
+    airfoil: { label: { de: "Tragflügel", en: "Airfoil" }, state: (p) => createState(p, "airfoil") },
+    empty: { label: { de: "Leer (selbst zeichnen)", en: "Empty (draw yourself)" }, state: (p) => createState(p, "empty") },
   },
 
   metrics: {
@@ -79,28 +92,7 @@ export default {
     },
   },
 
-  init(params) {
-    const nx = Number(params.resolution);
-    const ny = Math.round(nx * 0.4);
-    const N = nx * ny;
-    /** @type {State} */
-    const s = {
-      nx,
-      ny,
-      f: new Float32Array(9 * N),
-      fNext: new Float32Array(9 * N),
-      solid: new Uint8Array(N),
-      ux: new Float32Array(N),
-      uy: new Float32Array(N),
-      display: new Float32Array(N),
-      fin: new Float64Array(9),
-      size: 0,
-      steps: 0,
-    };
-    addDisk(s, ny * 0.6, ny / 2 + 1, ny / 16);
-    fillEquilibrium(s, Math.min(params.inflow, MAX_INFLOW));
-    return s;
-  },
+  init: (params) => createState(params, "cylinder"),
 
   step(s, params) {
     const u0 = Math.min(params.inflow, MAX_INFLOW);
@@ -108,8 +100,29 @@ export default {
     streamAndCollide(s, omega);
     setInflow(s, u0);
 
+    if (params.tracers) advectTracers(s);
+
     s.steps++;
     if (s.steps % NAN_CHECK_EVERY === 0 && !isHealthy(s)) fillEquilibrium(s, u0); // restart the flow, keep obstacles
+  },
+
+  onPointer(s, params, e) {
+    if (e.type === "up" || e.buttons === 0) {
+      s.brush = null;
+      return;
+    }
+    const solid = params.erase || e.buttons & 2 ? 0 : 1;
+    // Convert world to cell coordinates and paint along the line from the last position.
+    const x = (e.x / W) * s.nx;
+    const y = (e.y / H) * s.ny;
+    const from = s.brush ?? { x, y };
+    const steps = Math.max(1, Math.ceil(Math.hypot(x - from.x, y - from.y)));
+    for (let k = 1; k <= steps; k++) {
+      const t = k / steps;
+      paintDisk(s, from.x + t * (x - from.x), from.y + t * (y - from.y), Math.max(1.5, s.ny / 30), solid);
+    }
+    s.brush = { x, y };
+    updateSize(s);
   },
 
   draw(ctx, s, params) {
@@ -128,6 +141,14 @@ export default {
     } else {
       for (let i = 0; i < nx * ny; i++) display[i] = solid[i] ? NaN : Math.hypot(ux[i], uy[i]);
       drawGrid(ctx, display, nx, ny, viridis, { min: 0, max: 1.6 * u0, width: W, height: H, nanColor: "#c8ccd2" });
+    }
+
+    if (params.tracers) {
+      const sx = W / nx;
+      const sy = H / ny;
+      const size = 0.6 * sx;
+      ctx.fillStyle = params.view === "vorticity" ? "rgba(20, 24, 30, 0.7)" : "rgba(255, 255, 255, 0.8)";
+      for (let k = 0; k < TRACERS; k++) ctx.fillRect(s.tracers[2 * k] * sx, s.tracers[2 * k + 1] * sy, size, size);
     }
   },
 };
@@ -280,15 +301,109 @@ function isHealthy(/** @type {State} */ s) {
   return true;
 }
 
-/** Mark a disk of solid cells (cell coordinates) and update the obstacle size. */
-function addDisk(/** @type {State} */ s, /** @type {number} */ cx, /** @type {number} */ cy, /** @type {number} */ r) {
+// ---------------------------------------------------------------------------
+// Obstacles, scenarios and smoke particles
+// ---------------------------------------------------------------------------
+
+/** @returns {State} */
+function createState(/** @type {import("../../src/types").Values} */ params, /** @type {"cylinder" | "airfoil" | "empty"} */ shape) {
+  const nx = Number(params.resolution);
+  const ny = Math.round(nx * 0.4);
+  const N = nx * ny;
+  /** @type {State} */
+  const s = {
+    nx,
+    ny,
+    f: new Float32Array(9 * N),
+    fNext: new Float32Array(9 * N),
+    solid: new Uint8Array(N),
+    ux: new Float32Array(N),
+    uy: new Float32Array(N),
+    display: new Float32Array(N),
+    fin: new Float64Array(9),
+    size: 0,
+    steps: 0,
+    tracers: new Float32Array(2 * TRACERS),
+    brush: null,
+  };
+  if (shape === "cylinder") paintDisk(s, ny * 0.6, ny / 2 + 1, ny / 16, 1);
+  if (shape === "airfoil") addAirfoil(s, ny * 0.45, ny / 2, ny * 0.5, 12);
+  updateSize(s);
+  fillEquilibrium(s, Math.min(params.inflow, MAX_INFLOW));
+  for (let k = 0; k < TRACERS; k++) {
+    s.tracers[2 * k] = Math.random() * nx;
+    s.tracers[2 * k + 1] = Math.random() * ny;
+  }
+  return s;
+}
+
+/** Set a disk of cells (cell coordinates) to obstacle (1) or fluid (0). */
+function paintDisk(/** @type {State} */ s, /** @type {number} */ cx, /** @type {number} */ cy, /** @type {number} */ r, /** @type {number} */ value) {
+  const N = s.nx * s.ny;
   for (let y = Math.floor(cy - r); y <= cy + r; y++) {
     for (let x = Math.floor(cx - r); x <= cx + r; x++) {
-      if (x < 0 || y < 0 || x >= s.nx || y >= s.ny) continue;
-      if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) s.solid[y * s.nx + x] = 1;
+      if (x < 1 || y < 0 || x >= s.nx - 1 || y >= s.ny) continue; // keep inflow/outflow columns free
+      if ((x - cx) ** 2 + (y - cy) ** 2 > r * r) continue;
+      const i = y * s.nx + x;
+      if (s.solid[i] === value) continue;
+      s.solid[i] = value;
+      // A freshly erased cell starts as fluid at rest.
+      if (!value) {
+        setEquilibrium(s.f, N, i, 1, 0, 0);
+        setEquilibrium(s.fNext, N, i, 1, 0, 0);
+      }
     }
   }
-  updateSize(s);
+}
+
+/**
+ * A symmetric NACA airfoil (wing profile) with chord length c, nose at (x0, y0),
+ * tilted nose-up by `angle` degrees ("angle of attack").
+ */
+function addAirfoil(/** @type {State} */ s, /** @type {number} */ x0, /** @type {number} */ y0, /** @type {number} */ c, /** @type {number} */ angle) {
+  const a = (angle * Math.PI) / 180;
+  const thickness = 0.15;
+  for (let y = 0; y < s.ny; y++) {
+    for (let x = 0; x < s.nx; x++) {
+      // Rotate the cell into the airfoil's frame: u along the chord, v across it.
+      // y points down on screen, so the tail lies at +c·(cos a, sin a), i.e. below the nose.
+      const dx = x - x0;
+      const dy = y - y0;
+      const u = (dx * Math.cos(a) + dy * Math.sin(a)) / c;
+      const v = (-dx * Math.sin(a) + dy * Math.cos(a)) / c;
+      if (u < 0 || u > 1) continue;
+      const half = 5 * thickness * (0.2969 * Math.sqrt(u) - 0.126 * u - 0.3516 * u ** 2 + 0.2843 * u ** 3 - 0.1015 * u ** 4);
+      if (Math.abs(v) <= half) s.solid[y * s.nx + x] = 1;
+    }
+  }
+}
+
+/**
+ * Smoke particles drift with the local flow velocity (bilinear interpolation between cells).
+ * Particles that leave the channel or get stuck in an obstacle restart at the inflow.
+ */
+function advectTracers(/** @type {State} */ s) {
+  const { nx, ny, ux, uy, solid, tracers } = s;
+  for (let k = 0; k < TRACERS; k++) {
+    let x = tracers[2 * k];
+    let y = tracers[2 * k + 1];
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    if (x0 < 0 || y0 < 0 || x0 >= nx - 1 || y0 >= ny - 1 || solid[y0 * nx + x0]) {
+      x = Math.random() * 2;
+      y = Math.random() * (ny - 1);
+    } else {
+      const fx = x - x0;
+      const fy = y - y0;
+      const i = y0 * nx + x0;
+      const lerp2 = (/** @type {Float32Array} */ u) =>
+        (1 - fy) * ((1 - fx) * u[i] + fx * u[i + 1]) + fy * ((1 - fx) * u[i + nx] + fx * u[i + nx + 1]);
+      x += lerp2(ux);
+      y += lerp2(uy);
+    }
+    tracers[2 * k] = x;
+    tracers[2 * k + 1] = y;
+  }
 }
 
 /** Vertical extent of all obstacles in cells: the length scale of the Reynolds number. */
