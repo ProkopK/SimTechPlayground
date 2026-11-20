@@ -5,4 +5,7 @@
  */
 export * from "./colormaps";
 export * from "./grid";
+export * from "./integrators";
 export * from "./rng";
+export * from "./trail";
+export * as vec from "./vec";
