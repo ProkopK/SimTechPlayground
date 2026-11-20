@@ -7,6 +7,7 @@ import type { Simulation } from "../types";
 import { createControls } from "./controls";
 import { el } from "./dom";
 import { renderMarkdown } from "./info";
+import { createMetrics } from "./metrics";
 import { createTopbar } from "./topbar";
 
 /** Renders the page for one simulation into `root`. Returns a cleanup function. */
@@ -25,13 +26,15 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   const title = el("h1", { class: "sim-title" });
   const stage = el("div", { class: "sim-stage" }, el("p", { class: "message" }, t("sim.loading")));
   const controlsSlot = el("div");
+  const metricsSlot = el("div");
   const infoSlot = el("section", { class: "sim-info" });
-  const side = el("aside", { class: "sim-side" }, title, controlsSlot, infoSlot);
+  const side = el("aside", { class: "sim-side" }, title, controlsSlot, metricsSlot, infoSlot);
   const topbarSlot = el("div", { class: "topbar-slot" });
   root.replaceChildren(topbarSlot, el("main", { class: "sim-page" }, stage, side));
 
   let runner: Runner | undefined;
   let controls: { dispose(): void } | undefined;
+  let metrics: ReturnType<typeof createMetrics> | undefined;
   let disposed = false;
 
   /** (Re)build everything that shows translated text; the running simulation is kept. */
@@ -41,6 +44,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
     document.title = `${text(entry!.meta.title)} · ${t("site.title")}`;
     controls?.dispose();
     if (runner) controls = createControls(controlsSlot, runner);
+    metrics?.relabel();
     renderInfo();
   }
 
@@ -64,6 +68,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
       if (disposed) return;
       stage.replaceChildren();
       runner = start(sim, stage);
+      metrics = createMetrics(metricsSlot, runner);
       renderTexts();
     },
     (error) => {
@@ -86,6 +91,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
     offLang();
     window.removeEventListener("keydown", onKey);
     controls?.dispose();
+    metrics?.dispose();
     runner?.dispose();
     document.title = t("site.title");
   };
