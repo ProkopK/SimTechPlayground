@@ -21,3 +21,9 @@ Things noticed during the work that are not part of the proof of concept. Add it
 - [ ] `src/lib` small linear solver (structural mechanics, truss builder)
 - [ ] Optional Web Worker for heavy `step` functions (hydrogen sampling, electronic structure)
 - [ ] Optional 3D picking (`onPointer3d`) if a 3D simulation needs interaction beyond orbit/zoom
+
+## Noticed during Phase 1
+
+- [ ] Crash overlay text is not re-translated on a language switch (it is created once)
+- [ ] Preset dropdown shows "–" again after a language switch (controls are rebuilt)
+- [ ] Explanation text on desktop is only visible by scrolling the side panel; consider a collapsible controls panel or tabs
