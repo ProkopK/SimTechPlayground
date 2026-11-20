@@ -1,6 +1,7 @@
 import { onLangChange, t, text } from "../i18n";
 import { getSimulation } from "../registry";
 import { createCanvas2D, downloadThumbnail } from "../runner/canvas2d";
+import { attachPointer } from "../runner/pointer";
 import { createRunner, type Runner, type SimView } from "../runner/runner";
 import type { Simulation } from "../types";
 import { createControls } from "./controls";
@@ -90,12 +91,17 @@ function start(sim: Simulation, stage: HTMLElement): Runner {
 
   if (sim.renderer !== "2d") throw new Error("3D simulations are not supported yet");
   const canvas = createCanvas2D(stage, sim);
+  let detachPointer = () => {};
   const view: SimView = {
     render: (state, values) => canvas.render((ctx, v) => sim.draw(ctx, state, values, v)),
-    dispose: () => canvas.dispose(),
+    dispose: () => {
+      detachPointer();
+      canvas.dispose();
+    },
   };
 
   const runner = createRunner(sim, view, () => (crash.hidden = false));
+  detachPointer = attachPointer(canvas.canvas, canvas.toWorld, runner.pointer);
   crashReset.addEventListener("click", () => {
     crash.hidden = true;
     runner.reset();
