@@ -1,0 +1,9 @@
+{
+  "title": { "de": "Ising-Modell: Wie Magnete entstehen", "en": "Ising model: how magnets form" },
+  "description": {
+    "de": "Winzige Magnete richten sich gegenseitig aus, bis es zu heiß wird: ein Phasenübergang zum Anfassen.",
+    "en": "Tiny magnets align each other until it gets too hot: a phase transition you can touch."
+  },
+  "tags": ["statphys"],
+  "order": 10
+}

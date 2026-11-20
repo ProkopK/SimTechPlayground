@@ -30,6 +30,8 @@ export function createCanvas2D(container: HTMLElement, sim: Simulation2D) {
     offsetX = (rect.width - ww * scale) / 2;
     offsetY = (rect.height - wh * scale) / 2;
     view.pixelsPerUnit = scale * dpr;
+    // World rectangle in canvas pixels, used to crop thumbnails (no letterbox bars).
+    canvas.dataset.crop = [offsetX, offsetY, ww * scale, wh * scale].map((v) => Math.round(v * dpr)).join(",");
   }
   const observer = new ResizeObserver(resize);
   observer.observe(canvas);
@@ -64,13 +66,14 @@ export function createCanvas2D(container: HTMLElement, sim: Simulation2D) {
   };
 }
 
-/** Dev helper: download the current canvas as a ≤ 400×300 WebP thumbnail. */
+/** Dev helper: download the current canvas (cropped to the world) as a ≤ 400×300 WebP thumbnail. */
 export function downloadThumbnail(canvas: HTMLCanvasElement, name = "thumbnail.webp") {
-  const s = Math.min(1, 400 / canvas.width, 300 / canvas.height);
+  const [x, y, w, h] = canvas.dataset.crop?.split(",").map(Number) ?? [0, 0, canvas.width, canvas.height];
+  const s = Math.min(1, 400 / w, 300 / h);
   const thumb = document.createElement("canvas");
-  thumb.width = Math.round(canvas.width * s);
-  thumb.height = Math.round(canvas.height * s);
-  thumb.getContext("2d")!.drawImage(canvas, 0, 0, thumb.width, thumb.height);
+  thumb.width = Math.round(w * s);
+  thumb.height = Math.round(h * s);
+  thumb.getContext("2d")!.drawImage(canvas, x, y, w, h, 0, 0, thumb.width, thumb.height);
   thumb.toBlob(
     (blob) => {
       if (!blob) return;
