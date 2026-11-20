@@ -27,3 +27,11 @@ Things noticed during the work that are not part of the proof of concept. Add it
 - [ ] Crash overlay text is not re-translated on a language switch (it is created once)
 - [ ] Preset dropdown shows "–" again after a language switch (controls are rebuilt)
 - [ ] Explanation text on desktop is only visible by scrolling the side panel; consider a collapsible controls panel or tabs
+
+## Noticed during Phase 2
+
+- [ ] Fullscreen on phones: the floating control panel covers the lower half; collapse it by default in fullscreen or add a "hide controls" button
+- [ ] Flow on phones in portrait is very flat (2.5:1); consider a hint to rotate the device, or a taller channel on mobile
+- [ ] Flow costs ~120 ms CPU per second on a fast desktop at 150×60; measure on a real mid-range phone (WebGL item above if too slow)
+- [ ] Gravity: show the launch speed while dragging, and optionally a predicted trajectory
+- [ ] Thumbnails of wide simulations are cropped to 4:3 on the tiles; consider per-simulation focus point
