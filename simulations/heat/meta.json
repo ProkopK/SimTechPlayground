@@ -1,0 +1,6 @@
+{
+  "title": { "de": "Wärmeleitung", "en": "Heat conduction" },
+  "description": { "de": "Male heiße und kalte Stellen und sieh zu, wie sich die Wärme ausbreitet.", "en": "Paint hot and cold spots and watch the heat spread." },
+  "tags": ["fluids"],
+  "order": 50
+}
