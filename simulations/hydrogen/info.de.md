@@ -7,6 +7,7 @@ Wo ist das Elektron im Wasserstoffatom? Die Quantenmechanik sagt: Das lässt sic
 - Schalte **Nur Schnitt** ein: Dann siehst du nur eine dünne Scheibe durch die Mitte. Im 2s- und 3s-Orbital versteckt sich innen eine Kugelschale, in der das Elektron nie zu finden ist.
 - Probiere die **Szenarien** mit zwei Zuständen aus: Dann bewegt sich die Wolke, und der Messwert zeigt, wie der Schwerpunkt der Ladung hin und her schwingt. Mit **Anteil 2. Orbital** stellst du ein, wie viel vom zweiten Zustand dabei ist.
 - Schalte **Echte Größenverhältnisse** ein und vergleiche 1s mit 4f.
+- Stelle die **Darstellung** auf **Isofläche**: Die Fläche umschließt den Bereich, in dem du das Elektron mit 90 % Wahrscheinlichkeit findest. So sehen Orbitale in Chemiebüchern aus.
 
 ## Orbitale
 

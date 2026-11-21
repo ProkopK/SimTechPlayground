@@ -24,12 +24,20 @@
  * the brightness |ψ(t)|² / q, which lies in [0, 2] for every mix (Cauchy–Schwarz), so the
  * summed brightness follows the current density without resampling ("importance
  * weighting"); the mix slider therefore works live. Colors show the phase of ψ.
+ *
+ * Isosurface: ψ₁ and ψ₂ are tabulated once on a 3D grid. Every frame |ψ(t)|² is filled
+ * into the grid and Three.js' marching cubes extracts the surface |ψ(t)|² = L, where the
+ * level L is chosen so that the region inside holds 90 % of the probability.
  */
+import { MarchingCubes } from "three/addons/objects/MarchingCubes.js";
 import { createRng } from "../../src/lib";
 
 const VIEW_RADIUS = 10; // world units filled by 95 % of the probability
 const SLICE_HALF_WIDTH = 0.6; // world units: half the thickness of the slice through the x-z plane
 const TRUE_SIZE_RADIUS = 20; // Bohr radii shown as VIEW_RADIUS in "true size" mode (about n = 3)
+const GRID = 48; // isosurface grid points per axis
+const ISO_PROBABILITY = 0.9; // the isosurface encloses this share of the probability
+const MAX_TRIANGLES = 60000; // buffer size of the isosurface mesh
 const BOHR_PM = 52.918; // Bohr radius in picometers
 const HARTREE_EV = 27.2114; // atomic unit of energy in eV
 const AU_TIME_FS = 0.0241888; // atomic unit of time in femtoseconds
@@ -81,6 +89,20 @@ const orbitalOptions = Object.fromEntries(Object.keys(ORBITALS).map((k) => [k, k
  * @property {number[]} axis         unit vector along which the center of charge moves
  * @property {number} period         oscillation period in fs (0 = stationary)
  * @property {number} wavelength     wavelength of the emitted light in nm (0 = no light)
+ * @property {Grid | null} grid      ψ on a grid for the isosurface (null for the point cloud only)
+ */
+
+/**
+ * ψ₁ and ψ₂ on a GRID³ grid covering the cube [−halfExtent, halfExtent]³ (Bohr radii).
+ * Stored in display order: index i + j·n + k·n² is the point (x, y, z) = (fᵢ, −f_k, f_j)·halfExtent
+ * with f = (index − n/2) / (n/2), i.e. Three.js axes (x, z up, −y), as marching cubes expects.
+ * @typedef {object} Grid
+ * @property {number} n
+ * @property {number} halfExtent
+ * @property {Float32Array} psi1re
+ * @property {Float32Array} psi1im
+ * @property {Float32Array} psi2re
+ * @property {Float32Array} psi2im
  */
 
 /**
@@ -88,6 +110,11 @@ const orbitalOptions = Object.fromEntries(Object.keys(ORBITALS).map((k) => [k, k
  * @typedef {object} View
  * @property {any} points     THREE.Points
  * @property {Float32Array} lut  256 RGB colors for the phase 0 … 2π
+ * @property {MarchingCubes | null} surface  isosurface mesh
+ * @property {Float32Array} scratch  for sorting densities when choosing the iso level
+ * @property {number} level   current iso level
+ * @property {number} mix     mix value the level was computed for
+ * @property {number} phase   phase ΔE·t the surface was last built for
  */
 
 // ---------------------------------------------------------------------------------------
@@ -271,6 +298,89 @@ const norm3 = (v) => Math.hypot(v[0], v[1], v[2]);
 /** Amplitudes c₁, c₂ for a share `mix` of the second orbital (c₁² + c₂² = 1). @param {number} mix */
 const amplitudes = (mix) => [Math.sqrt(1 - mix), Math.sqrt(mix)];
 
+/**
+ * Tabulate ψ₁ and ψ₂ on the isosurface grid (see the Grid typedef for the layout).
+ * @param {Orbital} o1 @param {Orbital | null} o2 @param {number} halfExtent
+ * @returns {Grid}
+ */
+function sampleGrid(o1, o2, halfExtent) {
+  const n = GRID;
+  const psi1re = new Float32Array(n ** 3), psi1im = new Float32Array(n ** 3);
+  const psi2re = new Float32Array(n ** 3), psi2im = new Float32Array(n ** 3);
+  const f = (/** @type {number} */ index) => ((index - n / 2) / (n / 2)) * halfExtent;
+  const v = [0, 0];
+  let q = 0;
+  for (let k = 0; k < n; k++) {
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++, q++) {
+        psi(o1, f(i), -f(k), f(j), v);
+        psi1re[q] = v[0];
+        psi1im[q] = v[1];
+        if (o2) {
+          psi(o2, f(i), -f(k), f(j), v);
+          psi2re[q] = v[0];
+          psi2im[q] = v[1];
+        }
+      }
+    }
+  }
+  return { n, halfExtent, psi1re, psi1im, psi2re, psi2im };
+}
+
+/**
+ * Density level L such that the region |ψ|² > L holds ISO_PROBABILITY of the probability
+ * (of the time average c₁²|ψ₁|² + c₂²|ψ₂|², so the level stays fixed while the cloud moves).
+ * @param {Grid} g @param {number} c1 @param {number} c2 @param {Float32Array} scratch
+ */
+function isoLevel(g, c1, c2, scratch) {
+  let total = 0;
+  for (let q = 0; q < scratch.length; q++) {
+    scratch[q] = c1 * c1 * (g.psi1re[q] ** 2 + g.psi1im[q] ** 2) + c2 * c2 * (g.psi2re[q] ** 2 + g.psi2im[q] ** 2);
+    total += scratch[q];
+  }
+  scratch.sort(); // ascending; walk down from the largest densities
+  let sum = 0;
+  for (let q = scratch.length - 1; q >= 0; q--) {
+    sum += scratch[q];
+    if (sum >= ISO_PROBABILITY * total) return scratch[q];
+  }
+  return 0;
+}
+
+/**
+ * Rebuild the isosurface of |ψ(t)|², if anything changed since the last frame.
+ * @param {View} view @param {MarchingCubes} mc @param {Grid} g @param {State} s
+ * @param {import("../../src/types").Values} p @param {number} size @param {number} c1 @param {number} c2
+ */
+function updateSurface(view, mc, g, s, p, size, c1, c2) {
+  mc.scale.setScalar(g.halfExtent * s.fitScale * size); // marching cubes works in [−1, 1]³
+  if (p.mix !== view.mix) {
+    view.level = isoLevel(g, c1, c2, view.scratch);
+    view.mix = p.mix;
+    view.phase = NaN; // force a rebuild
+  }
+  const phase = isSuperposition(s, p) ? s.dE * s.t : 0; // a single state never changes
+  if (phase === view.phase) return;
+  view.phase = phase;
+
+  const c = c2 * Math.cos(phase), sn = c2 * Math.sin(phase);
+  const { field, palette } = mc;
+  for (let q = 0; q < field.length; q++) {
+    // c₁ψ₁ + c₂ψ₂ · e^{−iΔE·t}, as for the points
+    const a = g.psi2re[q], b = g.psi2im[q];
+    const re = c1 * g.psi1re[q] + a * c + b * sn;
+    const im = c1 * g.psi1im[q] + b * c - a * sn;
+    field[q] = re * re + im * im;
+    const k = (((Math.atan2(im, re) / (2 * Math.PI) + 1) * 256) | 0) & 255;
+    palette[3 * q] = view.lut[3 * k];
+    palette[3 * q + 1] = view.lut[3 * k + 1];
+    palette[3 * q + 2] = view.lut[3 * k + 2];
+  }
+  mc.normal_cache.fill(0); // marching cubes caches normals; the field changed
+  mc.isolation = view.level;
+  mc.update();
+}
+
 /** True if the electron really is in two states at once. @param {State} s @param {import("../../src/types").Values} p */
 const isSuperposition = (s, p) => s.hasSecond && p.mix > 0 && p.mix < 1;
 
@@ -293,6 +403,15 @@ export default {
     second: {
       type: "select", options: { none: { de: "– keins –", en: "– none –" }, ...orbitalOptions }, value: "none", resetOnChange: true,
       label: { de: "Überlagert mit", en: "Superposed with" },
+    },
+    display: {
+      type: "select", value: "cloud", resetOnChange: true,
+      options: {
+        cloud: { de: "Punktwolke", en: "Point cloud" },
+        surface: { de: "Isofläche (90 %)", en: "Isosurface (90 %)" },
+        both: { de: "Beides", en: "Both" },
+      },
+      label: { de: "Darstellung", en: "Display" },
     },
     mix: {
       type: "range", min: 0, max: 1, step: 0.01, value: 0.5,
@@ -346,7 +465,7 @@ export default {
   },
 
   init(params) {
-    const count = Number(params.count);
+    const count = params.display === "surface" ? 0 : Number(params.count); // no points needed for the surface alone
     const o1 = ORBITALS[params.orbital];
     const o2 = params.second === "none" ? null : ORBITALS[params.second];
     const sampler1 = createSampler(o1);
@@ -389,6 +508,8 @@ export default {
       dipoleRe: dipole.re, dipoleIm: dipole.im, axis,
       period: dE !== 0 ? ((2 * Math.PI) / Math.abs(dE)) * AU_TIME_FS : 0,
       wavelength: emits ? HC_EV_NM / (Math.abs(dE) * HARTREE_EV) : 0,
+      // The grid reaches a bit beyond the 95 % radius, so the 90 % surface fits inside.
+      grid: params.display === "cloud" ? null : sampleGrid(o1, o2, 1.2 * r95),
     };
   },
 
@@ -396,7 +517,7 @@ export default {
     s.t += dt; // the wavefunction is known exactly for every t; only time advances
   },
 
-  setup3d({ THREE, scene }, s) {
+  setup3d({ THREE, scene }, s, p) {
     // Positions never change. Physics z (up) becomes Three.js y (up): (x, y, z) → (x, z, −y).
     const positions = new Float32Array(3 * s.count);
     for (let i = 0; i < s.count; i++) {
@@ -430,7 +551,22 @@ export default {
       lut[3 * k + 1] = color.g;
       lut[3 * k + 2] = color.b;
     }
-    return { points, lut };
+    // Isosurface: opaque alone, see-through together with the point cloud.
+    let surface = null;
+    if (s.grid) {
+      const both = p.display === "both";
+      const material = new THREE.MeshStandardMaterial({
+        vertexColors: true, roughness: 0.55, side: THREE.DoubleSide,
+        transparent: both, opacity: both ? 0.3 : 1, depthWrite: !both,
+      });
+      surface = new MarchingCubes(s.grid.n, material, false, true, MAX_TRIANGLES);
+      // Fixed order: surface first, points on top. Otherwise Three.js sorts the two by their
+      // bounding-sphere centers, which swap while rotating, and the brightness jumps.
+      surface.renderOrder = 0;
+      points.renderOrder = 1;
+      scene.add(surface);
+    }
+    return { points, lut, surface, scratch: new Float32Array(s.grid ? s.grid.n ** 3 : 0), level: 0, mix: NaN, phase: NaN };
   },
 
   update3d(view, s, p) {
@@ -461,5 +597,6 @@ export default {
       col[3 * i + 2] = view.lut[3 * k + 2] * f;
     }
     view.points.geometry.attributes.color.needsUpdate = true;
+    if (view.surface && s.grid) updateSurface(view, view.surface, s.grid, s, p, size, c1, c2);
   },
 };
