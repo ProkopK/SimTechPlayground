@@ -154,7 +154,7 @@ export interface Simulation3D<S = any, V = any> extends SimulationBase<S> {
 export type Simulation = Simulation2D | Simulation3D;
 
 /** Topic tags. Names are translated in src/i18n/<lang>.json as `tag.<key>`. */
-export type TagKey = "statphys" | "fluids" | "mechanics" | "chaos" | "demo";
+export type TagKey = "statphys" | "fluids" | "mechanics" | "chaos" | "quantum" | "demo";
 
 /** Contents of `simulations/<id>/meta.json`. */
 export interface SimMeta {
