@@ -20,7 +20,7 @@ export function createMetrics(container: HTMLElement, runner: Runner) {
     const canvas = metric.plot === false ? undefined : el("canvas", { class: "metric__plot" });
     const row = el("div", { class: "metric" }, label, value);
     if (canvas) row.append(canvas);
-    return { metric, label, value, canvas, history: [] as number[] };
+    return { metric, label, value, canvas, history: [] as (number | null)[] };
   });
   const root = el("section", { class: "sim-metrics" }, heading, ...rows.map((r) => r.label.parentElement!));
   container.append(root);
@@ -34,13 +34,13 @@ export function createMetrics(container: HTMLElement, runner: Runner) {
   function sample() {
     if (runner.paused || runner.state === undefined) return;
     for (const r of rows) {
-      let v: number;
+      let v: number | null;
       try {
         v = r.metric.value(runner.state, runner.values);
       } catch {
         v = NaN;
       }
-      r.value.textContent = Number.isFinite(v) ? v.toFixed(r.metric.digits ?? 3) : "–";
+      r.value.textContent = v !== null && Number.isFinite(v) ? v.toFixed(r.metric.digits ?? 3) : "–"; // null = not applicable
       if (!r.canvas) continue;
       r.history.push(v);
       if (r.history.length > HISTORY) r.history.shift();
@@ -59,7 +59,7 @@ export function createMetrics(container: HTMLElement, runner: Runner) {
   };
 }
 
-function drawSparkline(canvas: HTMLCanvasElement, values: number[]) {
+function drawSparkline(canvas: HTMLCanvasElement, values: (number | null)[]) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const w = Math.round(canvas.clientWidth * dpr);
   const h = Math.round(canvas.clientHeight * dpr);
@@ -73,7 +73,7 @@ function drawSparkline(canvas: HTMLCanvasElement, values: number[]) {
   let min = Infinity;
   let max = -Infinity;
   for (const v of values) {
-    if (!Number.isFinite(v)) continue;
+    if (v === null || !Number.isFinite(v)) continue;
     if (v < min) min = v;
     if (v > max) max = v;
   }
@@ -90,7 +90,7 @@ function drawSparkline(canvas: HTMLCanvasElement, values: number[]) {
   ctx.lineWidth = 1.5 * dpr;
   ctx.beginPath();
   values.forEach((v, i) => {
-    if (!Number.isFinite(v)) return;
+    if (v === null || !Number.isFinite(v)) return;
     const x = (i / (HISTORY - 1)) * w;
     const y = pad + (1 - (v - min) / (max - min)) * (h - 2 * pad);
     if (i === 0) ctx.moveTo(x, y);

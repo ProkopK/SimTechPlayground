@@ -16,18 +16,20 @@
  * Time evolution: a single orbital is stationary (only its global phase turns, which is
  * invisible). A superposition of two orbitals with different n oscillates:
  *
- *   ψ(t) ∝ ψ₁ + ψ₂ · e^{−iΔE·t}      (global phase dropped)
+ *   ψ(t) = c₁ψ₁ + c₂ψ₂ · e^{−iΔE·t}      (global phase dropped; c₁² + c₂² = 1 from the "mix" slider)
  *
  * Method: the points are sampled once (in init) from the time-averaged density
  * q = (|ψ₁|² + |ψ₂|²) / 2 by sampling each orbital exactly (radius from a tabulated
  * cumulative distribution, direction by rejection sampling). Every frame each point gets
- * the brightness |ψ(t)|² / q, which lies in [0, 2], so the summed brightness follows the
- * current density without resampling ("importance weighting"). Colors show the phase of ψ.
+ * the brightness |ψ(t)|² / q, which lies in [0, 2] for every mix (Cauchy–Schwarz), so the
+ * summed brightness follows the current density without resampling ("importance
+ * weighting"); the mix slider therefore works live. Colors show the phase of ψ.
  */
 import { createRng } from "../../src/lib";
 
 const VIEW_RADIUS = 10; // world units filled by 95 % of the probability
 const SLICE_HALF_WIDTH = 0.6; // world units: half the thickness of the slice through the x-z plane
+const TRUE_SIZE_RADIUS = 20; // Bohr radii shown as VIEW_RADIUS in "true size" mode (about n = 3)
 const BOHR_PM = 52.918; // Bohr radius in picometers
 const HARTREE_EV = 27.2114; // atomic unit of energy in eV
 const AU_TIME_FS = 0.0241888; // atomic unit of time in femtoseconds
@@ -70,6 +72,8 @@ const orbitalOptions = Object.fromEntries(Object.keys(ORBITALS).map((k) => [k, k
  * @property {Float32Array} psi2re   ψ₂ at each point (zero without a second orbital)
  * @property {Float32Array} psi2im
  * @property {Float32Array} invQ     1 / (|ψ₁|² + |ψ₂|²) at each point
+ * @property {boolean} hasSecond     a second orbital is selected
+ * @property {number} fitScale       world units per Bohr radius that fit this cloud to the view
  * @property {number} dE             energy difference E₂ − E₁ (Hartree); 0 = stationary
  * @property {number} t              time (atomic units)
  * @property {number[]} dipoleRe     ⟨ψ₁| r |ψ₂⟩ (Bohr radii), real and imaginary part
@@ -264,6 +268,12 @@ const energy = (n) => -1 / (2 * n * n);
 /** @param {number[]} v */
 const norm3 = (v) => Math.hypot(v[0], v[1], v[2]);
 
+/** Amplitudes c₁, c₂ for a share `mix` of the second orbital (c₁² + c₂² = 1). @param {number} mix */
+const amplitudes = (mix) => [Math.sqrt(1 - mix), Math.sqrt(mix)];
+
+/** True if the electron really is in two states at once. @param {State} s @param {import("../../src/types").Values} p */
+const isSuperposition = (s, p) => s.hasSecond && p.mix > 0 && p.mix < 1;
+
 // ---------------------------------------------------------------------------------------
 
 /** @type {import("../../src/types").Simulation3D<State, View>} */
@@ -284,6 +294,11 @@ export default {
       type: "select", options: { none: { de: "– keins –", en: "– none –" }, ...orbitalOptions }, value: "none", resetOnChange: true,
       label: { de: "Überlagert mit", en: "Superposed with" },
     },
+    mix: {
+      type: "range", min: 0, max: 1, step: 0.01, value: 0.5,
+      label: { de: "Anteil 2. Orbital", en: "Share of 2nd orbital" },
+    },
+    trueSize: { type: "boolean", value: false, label: { de: "Echte Größenverhältnisse", en: "True relative size" } },
     slice: { type: "boolean", value: false, label: { de: "Nur Schnitt (x-z-Ebene)", en: "Slice only (x-z plane)" } },
     count: {
       type: "select", options: [20000, 50000, 100000], value: 50000, mobileValue: 20000, resetOnChange: true,
@@ -295,33 +310,36 @@ export default {
     ground: { label: { de: "Grundzustand 1s", en: "Ground state 1s" }, params: { orbital: "1s", second: "none" } },
     dumbbell: { label: { de: "Hantel 2p (z)", en: "Dumbbell 2p (z)" }, params: { orbital: "2p (z)", second: "none" } },
     clover: { label: { de: "Kleeblatt 3d (xy)", en: "Cloverleaf 3d (xy)" }, params: { orbital: "3d (xy)", second: "none" } },
-    swing: { label: { de: "Schwingung 1s + 2p (z): UV-Licht", en: "Oscillation 1s + 2p (z): UV light" }, params: { orbital: "1s", second: "2p (z)" } },
-    spin: { label: { de: "Kreisel 1s + 2p (m = +1)", en: "Spinning 1s + 2p (m = +1)" }, params: { orbital: "1s", second: "2p (m = +1)" } },
-    red: { label: { de: "Rotes Licht 2s + 3p (z)", en: "Red light 2s + 3p (z)" }, params: { orbital: "2s", second: "3p (z)" } },
-    breathe: { label: { de: "Atmen 1s + 2s: kein Licht", en: "Breathing 1s + 2s: no light" }, params: { orbital: "1s", second: "2s" } },
+    swing: { label: { de: "Schwingung 1s + 2p (z): UV-Licht", en: "Oscillation 1s + 2p (z): UV light" }, params: { orbital: "1s", second: "2p (z)", mix: 0.5 } },
+    spin: { label: { de: "Kreisel 1s + 2p (m = +1)", en: "Spinning 1s + 2p (m = +1)" }, params: { orbital: "1s", second: "2p (m = +1)", mix: 0.5 } },
+    red: { label: { de: "Rotes Licht 2s + 3p (z)", en: "Red light 2s + 3p (z)" }, params: { orbital: "2s", second: "3p (z)", mix: 0.5 } },
+    breathe: { label: { de: "Atmen 1s + 2s: kein Licht", en: "Breathing 1s + 2s: no light" }, params: { orbital: "1s", second: "2s", mix: 0.5 } },
   },
 
+  // null = "doesn't apply" (shown as –): without a superposition nothing oscillates or shines.
   metrics: {
     dipole: {
       label: { de: "Auslenkung des Ladungsschwerpunkts (pm)", en: "Displacement of the center of charge (pm)" },
-      // ⟨r⟩(t) = Re(⟨ψ₁| r |ψ₂⟩ · e^{−iΔE·t}) for the 50/50 superposition, projected on its axis
-      value: (s) => {
+      // ⟨r⟩(t) = 2 c₁c₂ · Re(⟨ψ₁| r |ψ₂⟩ · e^{−iΔE·t}), projected on its axis
+      value: (s, p) => {
+        if (!isSuperposition(s, p)) return null;
+        const [c1, c2] = amplitudes(p.mix);
         const c = Math.cos(s.dE * s.t), sn = Math.sin(s.dE * s.t);
         let d = 0;
         for (let k = 0; k < 3; k++) d += s.axis[k] * (s.dipoleRe[k] * c + s.dipoleIm[k] * sn);
-        return d * BOHR_PM;
+        return 2 * c1 * c2 * d * BOHR_PM;
       },
       digits: 1,
     },
     period: {
       label: { de: "Schwingungsdauer (Femtosekunden)", en: "Oscillation period (femtoseconds)" },
-      value: (s) => s.period,
+      value: (s, p) => (isSuperposition(s, p) && s.period > 0 ? s.period : null),
       plot: false,
       digits: 2,
     },
     wavelength: {
       label: { de: "Wellenlänge des ausgesandten Lichts (nm)", en: "Wavelength of the emitted light (nm)" },
-      value: (s) => s.wavelength,
+      value: (s, p) => (isSuperposition(s, p) && s.wavelength > 0 ? s.wavelength : null),
       plot: false,
       digits: 0,
     },
@@ -367,7 +385,7 @@ export default {
     const axis = len > 0 ? main.map((x) => x / len) : [0, 0, 0];
     const emits = dE !== 0 && len > 0;
     return {
-      count, pos, psi1re, psi1im, psi2re, psi2im, invQ, dE, t: 0,
+      count, pos, psi1re, psi1im, psi2re, psi2im, invQ, hasSecond: !!o2, fitScale: scale, dE, t: 0,
       dipoleRe: dipole.re, dipoleIm: dipole.im, axis,
       period: dE !== 0 ? ((2 * Math.PI) / Math.abs(dE)) * AU_TIME_FS : 0,
       wavelength: emits ? HC_EV_NM / (Math.abs(dE) * HARTREE_EV) : 0,
@@ -416,17 +434,26 @@ export default {
   },
 
   update3d(view, s, p) {
-    const c = Math.cos(s.dE * s.t), sn = Math.sin(s.dE * s.t);
+    // True size: the same scale for every orbital (n = 3 fills the view); otherwise fitted.
+    const size = p.trueSize ? VIEW_RADIUS / TRUE_SIZE_RADIUS / s.fitScale : 1;
+    view.points.scale.setScalar(size);
+
+    const [c1, c2] = s.hasSecond ? amplitudes(p.mix) : [1, 0];
+    // q = (|ψ₁|² + |ψ₂|²) / 2 with two orbitals, |ψ₁|² with one; invQ stores 1 / (|ψ₁|² + |ψ₂|²).
+    const qFactor = s.hasSecond ? 2 : 1;
+    const c = c2 * Math.cos(s.dE * s.t), sn = c2 * Math.sin(s.dE * s.t);
     const col = view.points.geometry.attributes.color.array;
     // Fewer points → each one brighter; the thin slice shows few points, so brighter too.
-    const gain = (p.slice ? 0.8 : 0.35) * Math.sqrt(50000 / s.count);
+    // A shrunken cloud packs the points closer together, so each one is dimmer.
+    const gain = (p.slice ? 0.8 : 0.35) * Math.sqrt(50000 / s.count) * Math.min(1, size) ** 1.5;
+    const sliceHalfWidth = SLICE_HALF_WIDTH / size;
     for (let i = 0; i < s.count; i++) {
-      // ψ₁ + ψ₂ · e^{−iΔE·t}
+      // c₁ψ₁ + c₂ψ₂ · e^{−iΔE·t}
       const a = s.psi2re[i], b = s.psi2im[i];
-      const re = s.psi1re[i] + a * c + b * sn;
-      const im = s.psi1im[i] + b * c - a * sn;
-      let w = (re * re + im * im) * s.invQ[i]; // |ψ(t)|² / q, between 0 and 2
-      if (p.slice && Math.abs(s.pos[3 * i + 1]) > SLICE_HALF_WIDTH) w = 0; // keep a thin slab around y = 0
+      const re = c1 * s.psi1re[i] + a * c + b * sn;
+      const im = c1 * s.psi1im[i] + b * c - a * sn;
+      let w = qFactor * (re * re + im * im) * s.invQ[i]; // |ψ(t)|² / q, between 0 and 2
+      if (p.slice && Math.abs(s.pos[3 * i + 1]) > sliceHalfWidth) w = 0; // keep a thin slab around y = 0
       const k = (((Math.atan2(im, re) / (2 * Math.PI) + 1) * 256) | 0) & 255;
       const f = w * gain;
       col[3 * i] = view.lut[3 * k] * f;

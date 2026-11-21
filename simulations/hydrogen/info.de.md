@@ -5,7 +5,8 @@ Wo ist das Elektron im Wasserstoffatom? Die Quantenmechanik sagt: Das lässt sic
 - **Drehen und zoomen**: Ziehe mit Maus oder Finger, zoome mit dem Mausrad oder zwei Fingern. Die farbigen Linien sind die Achsen: rot $x$, grün $y$, blau $z$ (nach oben).
 - Wähle verschiedene **Orbitale** und vergleiche ihre Formen: Kugel (s), Hantel (p), Kleeblatt (d) und noch kompliziertere (f).
 - Schalte **Nur Schnitt** ein: Dann siehst du nur eine dünne Scheibe durch die Mitte. Im 2s- und 3s-Orbital versteckt sich innen eine Kugelschale, in der das Elektron nie zu finden ist.
-- Probiere die **Szenarien** mit zwei Zuständen aus: Dann bewegt sich die Wolke, und der Messwert zeigt, wie der Schwerpunkt der Ladung hin und her schwingt.
+- Probiere die **Szenarien** mit zwei Zuständen aus: Dann bewegt sich die Wolke, und der Messwert zeigt, wie der Schwerpunkt der Ladung hin und her schwingt. Mit **Anteil 2. Orbital** stellst du ein, wie viel vom zweiten Zustand dabei ist.
+- Schalte **Echte Größenverhältnisse** ein und vergleiche 1s mit 4f.
 
 ## Orbitale
 
@@ -21,7 +22,7 @@ $$
 E_n = -\frac{13{,}6\ \text{eV}}{n^2}
 $$
 
-Die Farben zeigen das Vorzeichen der Wellenfunktion: orange für positiv, hellblau für negativ. Bei den Orbitalen mit „$m = +1$“ oder „$m = +2$“ ist $\psi$ eine komplexe Zahl, und die Farbe läuft einmal oder zweimal durch den Regenbogen, wenn du um die $z$-Achse herumgehst. Diese Elektronen kreisen um die $z$-Achse. Damit alles gut zu sehen ist, wird jede Wolke auf dieselbe Größe gebracht. In Wirklichkeit wachsen Orbitale ungefähr mit $n^2$: Ein 4f-Orbital ist mehr als zehnmal so groß wie das 1s-Orbital.
+Die Farben zeigen das Vorzeichen der Wellenfunktion: orange für positiv, hellblau für negativ. Bei den Orbitalen mit „$m = +1$“ oder „$m = +2$“ ist $\psi$ eine komplexe Zahl, und die Farbe läuft einmal oder zweimal durch den Regenbogen, wenn du um die $z$-Achse herumgehst. Diese Elektronen kreisen um die $z$-Achse. Damit alles gut zu sehen ist, wird normalerweise jede Wolke auf dieselbe Größe gebracht. In Wirklichkeit wachsen Orbitale ungefähr mit $n^2$: Ein 4f-Orbital ist mehr als zehnmal so groß wie das 1s-Orbital. Das zeigt dir der Schalter **Echte Größenverhältnisse**.
 
 ## Wie ein Atom leuchtet
 

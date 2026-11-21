@@ -74,8 +74,11 @@ export interface Preset<S = any> {
 /** A number shown below the simulation, optionally with a small time-series plot. */
 export interface Metric<S = any> {
   label: Text;
-  /** Must be cheap. Compute expensive values in `step()` and store them on the state. */
-  value(state: S, params: Values): number;
+  /**
+   * Must be cheap. Compute expensive values in `step()` and store them on the state.
+   * Return `null` if the value doesn't apply right now; it is shown as "–".
+   */
+  value(state: S, params: Values): number | null;
   /** Show a sparkline (default true). */
   plot?: boolean;
   /** Decimal places shown (default 3). */

@@ -5,7 +5,7 @@
  *     unchanged copies from the template
  *   - meta.json and the simulation object follow the contract (src/types/index.ts)
  *   - smoke test without a browser: init + steps, every preset, button and pointer
- *     handler run without exceptions, and all metrics stay finite numbers
+ *     handler run without exceptions, and all metrics stay finite numbers (or null)
  * Also checks that the animation loop advances at the same speed at different frame rates.
  *
  * Run with `npm run check` (also runs the TypeScript check). Exits with code 1 on errors.
@@ -232,7 +232,7 @@ function smokeTest(sim, label, values, makeState) {
 function checkMetrics(/** @type {any} */ sim, /** @type {any} */ state, /** @type {any} */ values, /** @type {string} */ where) {
   for (const [key, m] of Object.entries(sim.metrics ?? {})) {
     const v = m.value(state, values);
-    if (typeof v !== "number" || !Number.isFinite(v)) error(where, `metric "${key}" is ${v}`);
+    if (v !== null && (typeof v !== "number" || !Number.isFinite(v))) error(where, `metric "${key}" is ${v}`); // null = "not applicable"
   }
 }
 
