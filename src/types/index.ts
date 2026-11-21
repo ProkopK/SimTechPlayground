@@ -74,8 +74,11 @@ export interface Preset<S = any> {
 /** A number shown below the simulation, optionally with a small time-series plot. */
 export interface Metric<S = any> {
   label: Text;
-  /** Must be cheap. Compute expensive values in `step()` and store them on the state. */
-  value(state: S, params: Values): number;
+  /**
+   * Must be cheap. Compute expensive values in `step()` and store them on the state.
+   * Return `null` if the value doesn't apply right now; it is shown as "–".
+   */
+  value(state: S, params: Values): number | null;
   /** Show a sparkline (default true). */
   plot?: boolean;
   /** Decimal places shown (default 3). */
@@ -154,7 +157,7 @@ export interface Simulation3D<S = any, V = any> extends SimulationBase<S> {
 export type Simulation = Simulation2D | Simulation3D;
 
 /** Topic tags. Names are translated in src/i18n/<lang>.json as `tag.<key>`. */
-export type TagKey = "statphys" | "fluids" | "mechanics" | "chaos" | "demo";
+export type TagKey = "statphys" | "fluids" | "mechanics" | "chaos" | "quantum" | "demo";
 
 /** Contents of `simulations/<id>/meta.json`. */
 export interface SimMeta {

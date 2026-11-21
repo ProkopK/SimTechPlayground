@@ -1,0 +1,9 @@
+{
+  "title": { "de": "Wasserstoffatom: Die Elektronenwolke", "en": "Hydrogen atom: the electron cloud" },
+  "description": {
+    "de": "Orbitale in 3D zum Drehen, und wie ein schwingendes Elektron Licht aussendet.",
+    "en": "Orbitals in 3D to rotate, and how an oscillating electron emits light."
+  },
+  "tags": ["quantum"],
+  "order": 50
+}

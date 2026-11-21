@@ -143,7 +143,7 @@ metrics: {
 },
 ```
 
-`value` is called ten times per second and must be cheap. Compute expensive quantities in `step` and store them on the state.
+`value` is called ten times per second and must be cheap. Compute expensive quantities in `step` and store them on the state. Return `null` when a value doesn't apply in the current setup; it is shown as "–".
 
 ### Pointer input (mouse and touch)
 
