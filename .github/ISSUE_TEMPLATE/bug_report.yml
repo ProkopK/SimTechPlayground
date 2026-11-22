@@ -1,0 +1,29 @@
+name: "Fehler melden / Report a bug"
+description: "Etwas funktioniert nicht oder sieht falsch aus. / Something doesn't work or looks wrong."
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke, dass du hilfst, die Seite besser zu machen! / Thanks for helping to improve the site!
+  - type: input
+    id: simulation
+    attributes:
+      label: "Welche Simulation? / Which simulation?"
+      description: "Name oder Link. Leer lassen, wenn es die Startseite betrifft. / Name or link; leave empty for the landing page."
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "Was ist passiert? / What happened?"
+      description: "Was hast du gemacht, und was ist dann passiert? Ein Screenshot hilft sehr. / What did you do, and what happened? A screenshot helps a lot."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Was sollte passieren? / What should have happened?"
+  - type: input
+    id: device
+    attributes:
+      label: "Gerät und Browser / Device and browser"
+      description: "z. B. / e.g. Android-Handy, Chrome; Laptop, Firefox"

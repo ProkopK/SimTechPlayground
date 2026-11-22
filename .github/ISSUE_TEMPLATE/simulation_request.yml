@@ -1,0 +1,26 @@
+name: "Simulation wünschen / Request a simulation"
+description: "Eine Idee für eine neue Simulation. / An idea for a new simulation."
+labels: ["simulation idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Du hast eine Idee, was man hier simulieren könnte? Erzähl uns davon! / Got an idea for something to simulate? Tell us!
+  - type: input
+    id: topic
+    attributes:
+      label: "Thema / Topic"
+      description: "z. B. Doppelpendel, Waldbrand, Verkehrsstau / e.g. double pendulum, forest fire, traffic jam"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Was soll man sehen und ausprobieren können? / What should people see and try?"
+      description: "Was passiert auf dem Bildschirm? Was kann man verstellen oder anklicken? Warum ist das spannend? / What happens on screen? What can people change or click? Why is it interesting?"
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: "Links oder Vorbilder (optional) / Links or examples (optional)"
