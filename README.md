@@ -34,7 +34,8 @@ src/                the shell (TypeScript): everything simulations share
   i18n/             UI strings (de.json, en.json)
   styles/           CSS with design tokens (CSS variables)
 scripts/check-sims.js   validation and headless smoke test (npm run check)
-docs/               PLAN.md (implementation plan), FINETUNING.md (todo list), MAINTAINERS.md
+plans/              ideas.md (simulation ideas), todos.md (open work): pick an entry and go
+docs/               MAINTAINERS.md (yearly handover)
 ```
 
 ## Technology

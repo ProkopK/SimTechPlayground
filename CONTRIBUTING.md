@@ -4,6 +4,8 @@ Thanks for adding a simulation from your field! You only write the **physics**, 
 
 Working language for code, comments, commits and PRs is **English**. Website content (titles, labels, explanation texts) is **German first**; English is optional.
 
+**Looking for something to do?** [plans/ideas.md](plans/ideas.md) lists simulation ideas, [plans/todos.md](plans/todos.md) lists improvements to the site and existing simulations. Add `_claimed: <your name>_` under an entry before you start, and delete the entry when your work is merged. Have an idea yourself? Add it to the matching section. Not on the team? [Open an issue](https://github.com/ProkopK/SimTechPlayground/issues/new/choose) instead.
+
 ## Contents
 
 1. [Setup](#1-setup)

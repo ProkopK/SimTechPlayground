@@ -1,6 +1,6 @@
 /*
  * Design tokens. All colors live here as CSS variables so that dark mode
- * and branding (see docs/FINETUNING.md) only need new values, no refactoring.
+ * and branding (see plans/todos.md) only need new values, no refactoring.
  */
 :root {
   --color-bg: #f4f6fa;
