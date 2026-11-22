@@ -1,8 +1,8 @@
 {
-  "title": { "de": "Lennard-Jones-Flüssigkeit: Modell für die intermolekularen Kräfte", "en": "Lennard-Jones fluid: model for intermolecular forces" },
+  "title": { "de": "Lennard-Jones-Flüssigkeit: Fluidsimulation auf Molekularebene", "en": "Lennard-Jones fluid: molecular-level fluid simulation" },
   "description": {
-    "de": "Ein Fluid in einem Behälter, das mit dem Lennard-Jones-Potential modelliert wird. Ändere die Temperatur und beobachte, wie sich das Fluid verhält.",
-    "en": "A fluid in a container modeled with the Lennard-Jones potential. Change the temperature and observe how the fluid behaves."
+    "de": "Hast du schon einmal einer Flüssigkeit beim Verdampfen zugesehen?",
+    "en": "Have you ever watched a liquid evaporate?"
   },
   "tags": ["fluids", "statphys"],
   "order": 100

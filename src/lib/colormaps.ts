@@ -35,6 +35,18 @@ export const viridis = makeColormap([
   [253, 231, 37],
 ]);
 
+export const plasma = makeColormap([
+    [13, 8, 135],
+    [42, 3, 147],
+    [82, 5, 122],
+    [126, 21, 87],
+    [168, 33, 68],
+    [210, 70, 32],
+    [253, 130, 38],
+    [248, 188, 35],
+    [240, 249, 33],
+]);
+
 /** Diverging blue → white → red. For signed values (e.g. spin, vorticity), centered at 0. */
 export const blueWhiteRed = makeColormap([
   [33, 102, 172],

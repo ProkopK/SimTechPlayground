@@ -13,7 +13,7 @@
  * plus optional params (controls), metrics (numbers + plot) and onPointer (mouse/touch).
  * See CONTRIBUTING.md and src/types/index.ts for all options.
  */
-import { createRng } from "../../src/lib";
+import { createRng, cssColor, plasma } from "../../src/lib";
 
 const MAX_PARTICLES = 300;
 
@@ -29,9 +29,13 @@ const MAX_PARTICLES = 300;
  * @property {Float64Array} fy_lj
  * @property {Float64Array} fx_langevin    Langevin forces (world units per second²)
  * @property {Float64Array} fy_langevin
+ * @property {boolean} external_active  whether the external force is active
+ * @property {number} external_mult  multiplier for the external force (positive or negative)
+ * @property {{ x: number, y: number }} external_pos  position of the external force
  * @property {import("../../src/lib").Rng} rng
  * @property {number} sigma  particle size (world units); need this to draw the balls
  * @property {boolean} walls  whether to have walls at the edges of the simulation
+ * @property {boolean} colorBySpeed  whether to color the particles by speed or not
  * @property {Float64Array} past_temps  past measured temperatures for averaging
  * @property {Float64Array} past_pressures  past measured pressures for averaging
  */
@@ -54,7 +58,7 @@ export default {
             label: { de: "Anzahl Teilchen", en: "Number of particles" },
         },
         temperature: {
-            type: "range", min: 0, max: 5, step: 0.01, value: 1,
+            type: "range", min: 0, max: 20, step: 0.1, value: 5,
             label: { de: "Zieltemperatur", en: "Target temperature" },
         },
         sigma: {
@@ -72,6 +76,18 @@ export default {
         walls: {
             type: "boolean", value: true,
             label: { de: "Wände am Rand der Simulation", en: "Walls at the edges of the simulation" },
+        },
+        colorBySpeed: {
+            type: "boolean", value: false,
+            label: { de: "Teilchen nach Geschwindigkeit einfärben", en: "Color particles by speed" },
+        },
+        externalForce: {
+            type: "range", min: 0, max: 100, step: 1, value: 50,
+            label: { de: "Stärke der externen Kraft", en: "Strength of external force" },
+        },
+        attract: {
+            type: "boolean", value: true,
+            label: { de: "Anziehen statt Abstoßen", en: "Attract instead of repel" },
         },
     },
 
@@ -130,9 +146,13 @@ export default {
             fy_lj: new Float64Array(MAX_PARTICLES),
             fx_langevin: new Float64Array(MAX_PARTICLES),
             fy_langevin: new Float64Array(MAX_PARTICLES),
+            external_active: false,
+            external_mult: 0,
+            external_pos: { x: 0, y: 0 },
             rng,
             sigma: params.sigma,
             walls: params.walls,
+            colorBySpeed: params.colorBySpeed, // whether to color the particles by speed or not
             past_temps: new Float64Array(180), // store the last 180 measured temperatures
             past_pressures: new Float64Array(180), // store the last 180 measured pressures
         };
@@ -145,6 +165,7 @@ export default {
     step(s, params, dt) {
         s.sigma = params.sigma; // update particle size in case it changed
         s.walls = params.walls; // update walls setting in case it changed
+        s.colorBySpeed = params.colorBySpeed; // update colorBySpeed setting in case it changed
 
         for (let i = 0; i < 100 && s.n < params.n_particles; i++) {
             addParticle(s, params.temperature, params.gamma, 0);
@@ -175,6 +196,7 @@ export default {
         }
         handleBCs(s, params); // handle boundary conditions (walls or periodic)
         computeLJForces(s, params.epsilon, params.sigma);
+        addExternalForces(s);
         for (let i = 0; i < s.n; i++) {
             // Update velocities with another half step
             s.vx[i] += 0.5 * dt * s.fx_lj[i];
@@ -205,9 +227,33 @@ export default {
         s.past_pressures[0] = measured_pressure;
     },
 
+    onPointer(s, params, e) {
+        if (e.type === "up" || e.buttons === 0) {
+            s.external_active = false;
+            return;
+        }
+        if (e.x < 1 || e.x > 101 || e.y < 1 || e.y > 101) {
+            s.external_active = false;
+            return;
+        }
+        
+        // Left button / finger attracts (or repulses if the toggle is on), right button paints down.
+        s.external_active = true;
+        s.external_mult = params.attract ? params.externalForce : -params.externalForce;
+        if (e.buttons & 2) s.external_mult = -params.externalForce;
+        // Paint along the line from the previous position, so fast strokes leave no gaps.
+        s.external_pos = { x: e.x, y: e.y };
+    },
+
     draw(ctx, s) {
-        ctx.fillStyle = "#f4a259";
         for (let i = 0; i < s.n; i++) {
+            const speed = Math.sqrt(s.vx[i] * s.vx[i] + s.vy[i] * s.vy[i]);
+            if (s.colorBySpeed) {
+                ctx.fillStyle = cssColor(plasma, Math.min(speed, 5) / 5);
+            }
+            else {
+                ctx.fillStyle = cssColor(plasma, 0.8);
+            }
             ctx.beginPath();
             ctx.arc(s.x[i] + 1, s.y[i] + 1, s.sigma / 2, 0, 2 * Math.PI);
             ctx.fill();
@@ -216,6 +262,13 @@ export default {
         // Draw periodic images if necessary
         if (!s.walls) {
             for (let i = 0; i < s.n; i++) {
+                const speed = Math.sqrt(s.vx[i] * s.vx[i] + s.vy[i] * s.vy[i]);
+                if (s.colorBySpeed) {
+                    ctx.fillStyle = cssColor(plasma, Math.min(speed, 5) / 5);
+                }
+                else {
+                    ctx.fillStyle = cssColor(plasma, 0.8);
+                }
                 if (s.x[i] < s.sigma / 2) {
                     ctx.beginPath();
                     ctx.arc(s.x[i] + 101, s.y[i] + 1, s.sigma / 2, 0, 2 * Math.PI);
@@ -223,7 +276,7 @@ export default {
                 }
                 if (s.x[i] > 100 - s.sigma / 2) {
                     ctx.beginPath();
-                    ctx.arc(s.x[i] - 100, s.y[i] + 1, s.sigma / 2, 0, 2 * Math.PI);
+                    ctx.arc(s.x[i] - 99, s.y[i] + 1, s.sigma / 2, 0, 2 * Math.PI);
                     ctx.fill();
                 }
                 if (s.y[i] < s.sigma / 2) {
@@ -233,7 +286,7 @@ export default {
                 }
                 if (s.y[i] > 100 - s.sigma / 2) {
                     ctx.beginPath();
-                    ctx.arc(s.x[i] + 1, s.y[i] - 100, s.sigma / 2, 0, 2 * Math.PI);
+                    ctx.arc(s.x[i] + 1, s.y[i] - 99, s.sigma / 2, 0, 2 * Math.PI);
                     ctx.fill();
                 }
             }
@@ -246,9 +299,18 @@ export default {
             ctx.strokeRect(0, 0, 102, 102);
         }
         else {
-            ctx.strokeStyle = "#000000";
+            const canvasBg = getComputedStyle(ctx.canvas)
+                .getPropertyValue("--color-canvas-bg")
+                .trim();
+            ctx.strokeStyle = canvasBg;
             ctx.lineWidth = 2;
             ctx.strokeRect(0, 0, 102, 102);
+
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.strokeRect(0, 0, 102, 102);
+            ctx.setLineDash([]);
         }
     },
 };
@@ -317,7 +379,7 @@ function computeLJForces(/** @type {State} */ s, /** @type {number} */ epsilon, 
             let r12 = r6 * r6;
             let forceMagnitude = 24 * epsilon * (2 * sigma12 / r12 - sigma6 / r6) / Math.sqrt(r2);
 
-            forceMagnitude = Math.max(-100, Math.min(100, forceMagnitude)); // prevent extreme forces
+            forceMagnitude = Math.max(-1000, Math.min(1000, forceMagnitude)); // prevent extreme forces
 
             // dx points from i to j. At short range this vector coefficient
             // is positive, so i must be pushed opposite dx and j along dx.
@@ -329,14 +391,38 @@ function computeLJForces(/** @type {State} */ s, /** @type {number} */ epsilon, 
     }
 }
 
+function addExternalForces(/** @type {State} */ s) {
+    if (!s.external_active) return;
+    for (let i = 0; i < s.n; i++) {
+        let dx = s.x[i] - s.external_pos.x;
+        let dy = s.y[i] - s.external_pos.y;
+
+        // The simulation has periodic boundaries, so use the shortest
+        // displacement between each pair.
+        if (!s.walls) {
+            if (dx > 50) dx -= 100;
+            else if (dx < -50) dx += 100;
+            if (dy > 50) dy -= 100;
+            else if (dy < -50) dy += 100;
+        }
+        let r2 = dx * dx + dy * dy;
+        if (r2 < 1e-12) continue;
+        let r = Math.sqrt(r2);
+        let forceMagnitude = s.external_mult * Math.exp(-0.005 * r2);
+        forceMagnitude = Math.max(-500, Math.min(500, forceMagnitude)); // prevent extreme forces
+        s.fx_lj[i] -= forceMagnitude * dx / r;
+        s.fy_lj[i] -= forceMagnitude * dy / r;
+    }
+}
+
 function handleBCs(/** @type {State} */ s, /** @type {any} */ params) {
     for (let i = 0; i < s.n; i++) {
         if (params.walls) {
             // Reflective walls
-            if (s.x[i] < s.sigma/2) { s.x[i] = s.sigma/2; s.vx[i] *= -1; }
-            if (s.x[i] > 100 - s.sigma/2) { s.x[i] = 100 - s.sigma/2; s.vx[i] *= -1; }
-            if (s.y[i] < s.sigma/2) { s.y[i] = s.sigma/2; s.vy[i] *= -1; }
-            if (s.y[i] > 100 - s.sigma/2) { s.y[i] = 100 - s.sigma/2; s.vy[i] *= -1; }
+            if (s.x[i] < s.sigma / 2) { s.x[i] = s.sigma / 2; s.vx[i] *= -1; }
+            if (s.x[i] > 100 - s.sigma / 2) { s.x[i] = 100 - s.sigma / 2; s.vx[i] *= -1; }
+            if (s.y[i] < s.sigma / 2) { s.y[i] = s.sigma / 2; s.vy[i] *= -1; }
+            if (s.y[i] > 100 - s.sigma / 2) { s.y[i] = 100 - s.sigma / 2; s.vy[i] *= -1; }
         } else {
             // Periodic boundaries
             if (s.x[i] < 0) s.x[i] += 100;
