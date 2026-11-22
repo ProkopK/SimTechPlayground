@@ -49,7 +49,7 @@ export default {
 
     // Simulated time per step, and how many steps run per real second (at speed ×1).
     dt: 1 / 60,
-    stepsPerSecond: 60,
+    stepsPerSecond: 120,        // 2x speed looks cooler than 1x, easier than making all the forces bigger :)
 
     // Each parameter becomes a control. The current values arrive as `params` below.
     params: {
@@ -236,7 +236,7 @@ export default {
             s.external_active = false;
             return;
         }
-        
+
         // Left button / finger attracts (or repulses if the toggle is on), right button paints down.
         s.external_active = true;
         s.external_mult = params.attract ? params.externalForce : -params.externalForce;
@@ -249,7 +249,7 @@ export default {
         for (let i = 0; i < s.n; i++) {
             const speed = Math.sqrt(s.vx[i] * s.vx[i] + s.vy[i] * s.vy[i]);
             if (s.colorBySpeed) {
-                ctx.fillStyle = cssColor(plasma, Math.min(speed, 5) / 5);
+                ctx.fillStyle = cssColor(plasma, Math.min(speed, 8) / 8);
             }
             else {
                 ctx.fillStyle = cssColor(plasma, 0.8);
@@ -264,7 +264,7 @@ export default {
             for (let i = 0; i < s.n; i++) {
                 const speed = Math.sqrt(s.vx[i] * s.vx[i] + s.vy[i] * s.vy[i]);
                 if (s.colorBySpeed) {
-                    ctx.fillStyle = cssColor(plasma, Math.min(speed, 5) / 5);
+                    ctx.fillStyle = cssColor(plasma, Math.min(speed, 8) / 8);
                 }
                 else {
                     ctx.fillStyle = cssColor(plasma, 0.8);
