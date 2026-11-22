@@ -21,6 +21,7 @@ export function makeColormap(stops: RGB[]): Colormap {
   return lut;
 }
 
+// #440154, #482878, #3e4a89, #31688e, #26828e, #1f9e89, #35b779, #6ece58, #b5de2b, #fde725
 /** Perceptually uniform, colorblind-friendly (dark purple → green → yellow). For magnitudes. */
 export const viridis = makeColormap([
   [68, 1, 84],
@@ -35,6 +36,7 @@ export const viridis = makeColormap([
   [253, 231, 37],
 ]);
 
+// #2166ac, #92c5de, #f7f7f7, #f4a582, #b2182b
 /** Diverging blue → white → red. For signed values (e.g. spin, vorticity), centered at 0. */
 export const blueWhiteRed = makeColormap([
   [33, 102, 172],
@@ -42,6 +44,13 @@ export const blueWhiteRed = makeColormap([
   [247, 247, 247],
   [244, 165, 130],
   [178, 24, 43],
+]);
+
+// #1a1a4e, #f5c518
+/** Diverging dark blue → yellow. */
+export const naviYellow = makeColormap([
+  [26, 26, 78],
+  [245, 197, 24],
 ]);
 
 /** Index into a colormap for value `v` scaled from [min, max] (clamped). */

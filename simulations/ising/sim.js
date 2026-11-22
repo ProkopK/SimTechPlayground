@@ -10,7 +10,7 @@
  * flipping it, and flip with probability min(1, exp(−ΔE / T)). One `step` is one sweep,
  * i.e. on average one flip attempt per spin. Units: J = 1, k_B = 1.
  */
-import { blueWhiteRed, createRng, drawGrid } from "../../src/lib";
+import { naviYellow, createRng, drawGrid } from "../../src/lib";
 
 /** The lattice is drawn into a square world of this size, whatever the number of cells. */
 const WORLD = 256;
@@ -36,11 +36,11 @@ export default {
 
   params: {
     T: {
-      type: "range", min: 0.1, max: 5, step: 0.01, value: 2.27,
+      type: "range", min: 0.01, max: 5, step: 0.01, value: 2.27,
       label: { de: "Temperatur T", en: "Temperature T" },
     },
     B: {
-      type: "range", min: -1, max: 1, step: 0.01, value: 0,
+      type: "range", min: -3, max: 3, step: 0.01, value: 0,
       label: { de: "Magnetfeld B", en: "Magnetic field B" },
     },
     size: {
@@ -131,7 +131,7 @@ export default {
   },
 
   draw(ctx, s) {
-    drawGrid(ctx, s.spins, s.n, s.n, blueWhiteRed, { min: -1, max: 1, width: WORLD, height: WORLD });
+    drawGrid(ctx, s.spins, s.n, s.n, naviYellow, { min: -1, max: 1, width: WORLD, height: WORLD });
   },
 };
 
