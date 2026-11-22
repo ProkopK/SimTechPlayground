@@ -20,7 +20,7 @@ Nach dem Newton'schen Kraftgesetz gilt (wir nehmen an, dass alle Teilchen die Ma
 $$
 \mathbf{F}_i = m_i \mathbf{a}_i = \frac{\mathrm{d}^2}{\mathrm{d}t^2} \mathbf{r}_i.
 $$
-Dies ist eine gewöhnliche Differenzialgleichung zweiter Ordnung, die wir numerisch integrieren können. Ein einfaches Verfahren wäre zum Beispiel ein explizites Euler-Schema: für einen kleinen Zeitschritt $\Delta t$ berechnen wir
+Dies ist eine gewöhnliche Differentialgleichung zweiter Ordnung, die wir numerisch integrieren können. Ein einfaches Verfahren wäre zum Beispiel ein explizites Euler-Schema: für einen kleinen Zeitschritt $\Delta t$ berechnen wir
  - die aktuell wirkenden Kräfte $\mathbf{F}_i(t)$ (die von den Positionen aller Teilchen abhängen) und daraus die aktuellen Beschleunigungen $\mathbf{a}_i(t)$,
  - die neuen Geschwindigkeiten $\mathbf{v}_i(t + \Delta t) \coloneqq \mathbf{v}_i(t) + \Delta t \cdot \mathbf{a}_i(t)$,
  - und schließlich die neuen Positionen $\mathbf{r}_i(t + \Delta t) \coloneqq \mathbf{r}_i(t) + \Delta t \cdot \mathbf{v}_i(t + \Delta t)$.
@@ -57,7 +57,7 @@ Auf ähnliche Weise berechnen wir den Druck.
 Für verschiedene Temperaturen stellen sich unterschiedliche Zustände des Systems ein.
 Bei Temperaturen nahe 0 bilden sich sechseckige Kristalle.
 Das ist das Simulationsäquivalent eines Festkörpers.
-Für etwas höhere Temperaturen bilden sich zunächst zusammenhängende Strukturen, die aber keine regelmäßigen Strukturen mehr bilden und ihre Form schon bei leichten Störungen verändern.
+Für etwas höhere Temperaturen bilden sich zunächst zusammenhängende Strukturen, die aber keine regelmäßigen Muster mehr bilden und ihre Form schon bei leichten Störungen verändern.
 In der echten Welt wäre das eine Flüssigkeit.
 Bei hinreichend großen Temperaturen lösen einzelne Teilchen aus dem zusammenhängenden Komplex, bis schließlich die gesamte Flüssigkeit zu einem Gas "verdampft" ist.
 Man erkennt also selbst in diesem einfachen Modell bereits verschiedene Aggregatszustände und Übergänge zwischen diesen.
@@ -78,7 +78,7 @@ Bei einer echten Simulation, die nicht in deinem Browser läuft, sind vielleicht
 Verglichen mit realistischen Teilchenzahlen (in der Ordnung $\sim 10^{20}$ oder mehr) ist aber auch das verschwindend gering.
 Um größere Systeme zu modellieren, nehmen wir an, dass das Fluid im ganzen Raum ungefähr gleich aussieht.
 Dann teilen wir den Raum in viele kleine Zellen auf und nehmen an, dass sich ungefähr genauso viele Teilchen auf einer Seite in eine Zelle hinein wie aus der anderen Seite heraus bewegen.
-Das erlaubt uns, periodische Randbedingungen zu definieren: Wenn sich ein Teilchen aus der Zelle bewegt, wird es auf die andere Seite der Zelle "teleportiert" und fliegt mit derselben Geschwindigkeit weiter.
+Das erlaubt uns, periodische Randbedingungen zu definieren: Wenn sich ein Teilchen aus der Zelle bewegt, wird es auf die gegenüberliegende Seite der Zelle "teleportiert" und fliegt mit derselben Geschwindigkeit weiter.
 Dadurch können wir auch große Mengen Gas zumindest näherungsweise simulieren.
 
 Außerdem können auch Kräfte von außen auf das Fluid wirken.
