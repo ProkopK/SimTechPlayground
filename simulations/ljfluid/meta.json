@@ -1,0 +1,9 @@
+{
+  "title": { "de": "Lennard-Jones-Flüssigkeit: Modell für die intermolekularen Kräfte", "en": "Lennard-Jones fluid: model for intermolecular forces" },
+  "description": {
+    "de": "Ein Fluid in einem Behälter, das mit dem Lennard-Jones-Potential modelliert wird. Ändere die Temperatur und beobachte, wie sich das Fluid verhält.",
+    "en": "A fluid in a container modeled with the Lennard-Jones potential. Change the temperature and observe how the fluid behaves."
+  },
+  "tags": ["fluids", "statphys"],
+  "order": 100
+}
