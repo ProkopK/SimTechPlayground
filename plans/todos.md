@@ -8,10 +8,6 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 - **Topic filter**: filter the tiles by tag.
 
-## Simulation page and controls
-
-- **Explanation text on desktop**: the text is only visible by scrolling the side panel; consider a collapsible controls panel or tabs.
-
 ## Language and translation
 
 - **Preset dropdown after language switch**: it shows "–" again because the controls are rebuilt.
@@ -28,12 +24,22 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 ## Design
 
+- **Improve default simulation layout**: The idea: top of the page: simulation canvas and right of it the controls and charts; below the canvas, the description and links
+
+- **More Simulations of the same topic**: below the description, show a list of other simulations of the same topic (e.g. "Particles" or "Fluids and heat").
+
 - **Dark/light mode**: toggle plus `prefers-color-scheme`.
 
 - **Design polish and branding**: colors, typography; a logo only after asking.
 
 - **Feedback links to GitHub Issues**: small "Fehler melden" / "Simulation wünschen" links (e.g. in the footer) that open the issue forms in `.github/ISSUE_TEMPLATE/`; on a simulation page the bug link pre-fills the simulation id.
   - Note: visitors need a GitHub account to open an issue.
+
+## Desciption
+
+- **Enable links to other simulations**: Intext links to other simulations (e.g. "see [heat](../simulations/heat/)")
+
+- **Enable pictures**: Intext images (e.g. "![alt text](../simulations/heat/heat.png)")
 
 ## Existing simulations
 
@@ -57,6 +63,8 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 - **2D sliders**: support for 2D sliders (e.g. ising model like https://www.youtube.com/watch?v=itRV2jEtV8Q)
 
+- **Constant slider length**: the slider length depends on the length of the label
+
 ## Shell and runner
 
 - **Web Worker for heavy `step`s**: optionally run `step` off the main thread (hydrogen sampling, electronic structure). The strict step/draw split keeps this possible.
@@ -64,6 +72,8 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 - **3D pointer input**: an `onPointer3d` with a ray, if a 3D simulation needs interaction beyond orbit/zoom (e.g. picking an orbital).
 
 - **Reset button should not change the selected szenario**: keep the current scenario when resetting the simulation.
+
+- **Warning when system is unstable**: e.g. when the Lennard-Jones simulation energy diverges, wind tunnel flow blocked / unstable
 
 ## src/lib
 
