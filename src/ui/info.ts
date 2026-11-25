@@ -4,9 +4,11 @@
  */
 import type { MarkedExtension } from "marked";
 
-let rendererPromise: Promise<(markdown: string) => string> | undefined;
+type Renderer = (markdown: string, resolveUrl: (href: string) => string) => string;
 
-async function loadRenderer(): Promise<(markdown: string) => string> {
+let rendererPromise: Promise<Renderer> | undefined;
+
+async function loadRenderer(): Promise<Renderer> {
   const [{ Marked }, { default: katex }] = await Promise.all([
     import("marked"),
     import("katex"),
@@ -40,11 +42,16 @@ async function loadRenderer(): Promise<(markdown: string) => string> {
       },
     ],
   };
-  const marked = new Marked(math);
-  return (markdown) => marked.parse(markdown, { async: false });
+  return (markdown, resolveUrl) =>
+    new Marked(math, {
+      walkTokens(token) {
+        if (token.type === "link" || token.type === "image") token.href = resolveUrl(token.href);
+      },
+    }).parse(markdown, { async: false });
 }
 
-export async function renderMarkdown(markdown: string): Promise<string> {
+/** `resolveUrl` rewrites link and image URLs, e.g. relative paths to bundled assets. */
+export async function renderMarkdown(markdown: string, resolveUrl: (href: string) => string): Promise<string> {
   rendererPromise ??= loadRenderer();
-  return (await rendererPromise)(markdown);
+  return (await rendererPromise)(markdown, resolveUrl);
 }

@@ -26,13 +26,6 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 - **Design polish and branding**: colors, typography; a logo only after asking.
 
-
-## Desciption
-
-- **Enable links to other simulations**: Intext links to other simulations (e.g. "see [heat](../simulations/heat/)")
-
-- **Enable pictures**: Intext images (e.g. "![alt text](../simulations/heat/heat.png)")
-
 ## Existing simulations
 
 ### Flow

@@ -13,6 +13,10 @@ $$
 v(t + \Delta t) = v(t) + g \, \Delta t
 $$
 
+Links auf andere Simulationen und Bilder schreibst du relativ zu dieser Datei. Ein Link auf eine andere Simulation zeigt auf ihren Ordner, z. B. auf die [Wärmeleitung](../heat/). Bilder legst du in den Ordner deiner Simulation:
+
+![Vorschaubild dieser Simulation](thumbnail.webp)
+
 ## Und im Studium?
 
 Wo begegnet einem das im Studiengang oder in der Praxis?

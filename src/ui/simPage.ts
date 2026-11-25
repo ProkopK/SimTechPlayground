@@ -1,5 +1,5 @@
 import { getLang, onLangChange, t, text } from "../i18n";
-import { getSimulation, simulations } from "../registry";
+import { getSimulation, resolveInfoUrl, simulations } from "../registry";
 import { createCanvas2D, downloadThumbnail } from "../runner/canvas2d";
 import { attachPointer } from "../runner/pointer";
 import { createRunner, type Runner, type SimView } from "../runner/runner";
@@ -75,7 +75,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   async function renderInfo() {
     const request = ++infoRequest; // ignore results of outdated requests (fast language switching)
     try {
-      const html = await renderMarkdown(await entry!.loadInfo(getLang()));
+      const html = await renderMarkdown(await entry!.loadInfo(getLang()), (href) => resolveInfoUrl(id, href));
       if (request !== infoRequest || disposed) return;
       infoBody.innerHTML = html;
     } catch (error) {
