@@ -147,6 +147,20 @@ metrics: {
 
 `value` is called often and must be cheap (called every frame, plus ten plot points per simulated second at speed ×1). Compute expensive quantities in `step` and store them on the state. Return `null` when a value doesn't apply in the current setup; it is shown as "–".
 
+Several numbers in one chart (e.g. energy components), each line in its own color:
+
+```js
+energy: {
+  type: "lines",
+  label: { de: "Energie" },
+  lines: {
+    kinetic: { label: "E_kin", value: (s) => s.kinetic },
+    potential: { label: "E_pot", value: (s) => s.potential },
+  },
+  digits: 1,
+},
+```
+
 ### Pointer input (mouse and touch)
 
 ```js

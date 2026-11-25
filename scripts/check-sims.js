@@ -181,7 +181,14 @@ function checkContract(/** @type {any} */ sim) {
   }
   for (const [key, m] of Object.entries(sim.metrics ?? {})) {
     if (!isText(m.label)) error(`metrics.${key}`, "needs a label with German text");
-    if (!isFn(m.value)) error(`metrics.${key}`, "needs value(state, params)");
+    if (m.type === "lines") {
+      if (Object.keys(m.lines ?? {}).length === 0) error(`metrics.${key}`, "needs at least one entry in lines");
+      for (const [k, line] of Object.entries(m.lines ?? {})) {
+        if (!isText(line.label)) error(`metrics.${key}.lines.${k}`, "needs a label with German text");
+        if (!isFn(line.value)) error(`metrics.${key}.lines.${k}`, "needs value(state, params)");
+      }
+    } else if (m.type !== undefined && m.type !== "value") error(`metrics.${key}`, `unknown type "${m.type}" (value, lines)`);
+    else if (!isFn(m.value)) error(`metrics.${key}`, "needs value(state, params)");
   }
   return ok;
 }
@@ -231,8 +238,11 @@ function smokeTest(sim, label, values, makeState) {
 
 function checkMetrics(/** @type {any} */ sim, /** @type {any} */ state, /** @type {any} */ values, /** @type {string} */ where) {
   for (const [key, m] of Object.entries(sim.metrics ?? {})) {
-    const v = m.value(state, values);
-    if (v !== null && (typeof v !== "number" || !Number.isFinite(v))) error(where, `metric "${key}" is ${v}`); // null = "not applicable"
+    const fns = m.type === "lines" ? Object.entries(m.lines).map(([k, line]) => [`${key}.${k}`, line.value]) : [[key, m.value]];
+    for (const [name, fn] of fns) {
+      const v = fn(state, values);
+      if (v !== null && (typeof v !== "number" || !Number.isFinite(v))) error(where, `metric "${name}" is ${v}`); // null = "not applicable"
+    }
   }
 }
 

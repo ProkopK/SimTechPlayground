@@ -71,8 +71,12 @@ export interface Preset<S = any> {
   state?(params: Values): S;
 }
 
-/** A number shown below the simulation, optionally with a small time-series plot. */
-export interface Metric<S = any> {
+/**
+ * A number shown below the simulation, optionally with a small time-series plot.
+ * In all metric labels (also of lines), "E_kin" or "E_{kin}" shows "kin" as a subscript.
+ */
+export interface ValueMetric<S = any> {
+  type?: "value";
   label: Text;
   /**
    * Must be cheap. Compute expensive values in `step()` and store them on the state.
@@ -84,6 +88,23 @@ export interface Metric<S = any> {
   /** Decimal places shown (default 3). */
   digits?: number;
 }
+
+/** One line of a `LinesMetric`. `value` follows the same rules as `ValueMetric.value`. */
+export interface MetricLine<S = any> {
+  label: Text;
+  value(state: S, params: Values): number | null;
+}
+
+/** Several numbers plotted over time in one chart, e.g. kinetic, potential and total energy. */
+export interface LinesMetric<S = any> {
+  type: "lines";
+  label: Text;
+  lines: Record<string, MetricLine<S>>;
+  /** Decimal places shown (default 3). */
+  digits?: number;
+}
+
+export type Metric<S = any> = ValueMetric<S> | LinesMetric<S>;
 
 /** Pointer (mouse, touch, pen) input, already converted to world coordinates (2D). */
 export interface PointerInfo {

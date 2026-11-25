@@ -38,10 +38,6 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 - **Charts and histograms**: support for distribution plots (e.g. the velocity distribution or radial distribution function for Lennard-Jones); scalar metrics only cover sparklines.
 
-- **Multiple lines in the chart**: the chart currently only supports one line; add support for multiple lines (e.g. for the Lennard-Jones energy components).
-
-- **Chart legend**: add a legend to the chart (e.g. for the Lennard-Jones energy components).
-
 - **2D sliders**: support for 2D sliders (e.g. ising model like https://www.youtube.com/watch?v=itRV2jEtV8Q)
 
 - **Constant slider length**: the slider length depends on the length of the label

@@ -69,8 +69,13 @@ export default {
 
   metrics: {
     energy: {
-      label: { de: "Gesamtenergie", en: "Total energy" },
-      value: (s) => totalEnergy(s),
+      type: "lines",
+      label: { de: "Energie", en: "Energy" },
+      lines: {
+        total: { label: "E_tot", value: (s) => kineticEnergy(s) + potentialEnergy(s) },
+        kinetic: { label: "E_kin", value: (s) => kineticEnergy(s) },
+        potential: { label: "E_pot", value: (s) => potentialEnergy(s) },
+      },
       digits: 1,
     },
     count: {
@@ -192,19 +197,24 @@ function computeAccelerations(/** @type {State} */ s, /** @type {Float64Array} *
   }
 }
 
-/** Kinetic plus (softened) potential energy. Constant up to small errors, except for merges. */
-function totalEnergy(/** @type {State} */ s) {
-  const { n, pos, vel, mass, G } = s;
+function kineticEnergy(/** @type {State} */ s) {
+  const { n, vel, mass } = s;
   let kinetic = 0;
+  for (let i = 0; i < n; i++) kinetic += 0.5 * mass[i] * (vel[2 * i] ** 2 + vel[2 * i + 1] ** 2);
+  return kinetic;
+}
+
+/** Softened potential energy. Kinetic plus potential is constant up to small errors, except for merges. */
+function potentialEnergy(/** @type {State} */ s) {
+  const { n, pos, mass, G } = s;
   let potential = 0;
   for (let i = 0; i < n; i++) {
-    kinetic += 0.5 * mass[i] * (vel[2 * i] ** 2 + vel[2 * i + 1] ** 2);
     for (let j = i + 1; j < n; j++) {
       const r2 = (pos[2 * j] - pos[2 * i]) ** 2 + (pos[2 * j + 1] - pos[2 * i + 1]) ** 2;
       potential -= (G * mass[i] * mass[j]) / Math.sqrt(r2 + SOFTENING * SOFTENING);
     }
   }
-  return kinetic + potential;
+  return potential;
 }
 
 /** Visual and collision radius: grows with the cube root of the mass (constant density). */

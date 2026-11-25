@@ -1,18 +1,21 @@
 /**
- * Shows a simulation's metrics below the controls: numbers with a small time-series plot.
+ * Shows a simulation's metrics below the controls. Two kinds (see src/types):
+ * - value: a number with a small time-series plot (sparkline)
+ * - lines: several numbers plotted over time in one chart, with a legend
  * Time plots show the last WINDOW_S seconds at speed ×1, measured in simulation time: a faster
  * speed scrolls faster but doesn't squeeze the curve. Points are stored at fixed simulation time
  * intervals; the line always ends at the current value, and the plots are redrawn every frame,
  * so they move smoothly even at a very low speed.
  */
-import { t, text } from "../i18n";
+import { t, text, type Text } from "../i18n";
 import type { Runner } from "../runner/runner";
-import type { Metric } from "../types";
+import type { LinesMetric, ValueMetric } from "../types";
 import { el } from "./dom";
 
 const WINDOW_S = 30; // time shown in a time plot, in real seconds at speed ×1
 const SAMPLES = 300; // stored points per window
 const DISPLAY_MS = 100; // how often the numbers are updated (plots: every frame)
+const LINE_COLORS = 4; // --chart-1 … --chart-4 in main.css, reused cyclically
 
 interface Row {
   root: HTMLElement;
@@ -97,48 +100,88 @@ function safe<T>(fn: () => T, fallback: T): T {
 
 const format = (v: number | null, digits = 3) => (v !== null && Number.isFinite(v) ? v.toFixed(digits) : "–"); // null = not applicable
 
-/** A single value with an optional sparkline. */
-function timeRow(metric: Metric, runner: Runner, window: number): Row {
-  const label = el("span", { class: "metric__label" });
-  const output = el("span", { class: "metric__value" }, "–");
-  // Stored points: their times and values.
-  const times: number[] = [];
-  const history: (number | null)[] = [];
-  const read = () => safe(() => metric.value(runner.state, runner.values), NaN);
+/** Set a label's text; "E_kin" or "E_{kin}" shows "kin" as a subscript. */
+function setLabel(node: HTMLElement, label: Text) {
+  const parts = text(label).split(/_\{([^}]*)\}|_([\p{L}\p{N}]+)/u);
+  // split() with capture groups: [text, group1, group2, text, group1, group2, …]
+  node.replaceChildren();
+  for (let i = 0; i < parts.length; i += 3) {
+    if (parts[i]) node.append(parts[i]);
+    const sub = parts[i + 1] ?? parts[i + 2];
+    if (sub) node.append(el("sub", {}, sub));
+  }
+}
 
-  const canvas = metric.plot === false ? undefined : el("canvas", { class: "metric__plot" });
-  const root = el("div", { class: canvas ? "metric metric--plot" : "metric" }, label, output);
-  if (canvas) root.append(canvas);
+/** CSS variable holding the color of line k. */
+const lineColor = (k: number) => `--chart-${(k % LINE_COLORS) + 1}`;
+
+/** Legend: color swatch, label and current value of each line. */
+function createLegend(labels: Text[], outputs: HTMLElement[]) {
+  const labelEls = labels.map(() => el("span", { class: "metric__label" }));
+  const items = labelEls.map((labelEl, k) =>
+    el("li", {}, el("span", { class: "metric__swatch", style: `background: var(${lineColor(k)})` }), labelEl, outputs[k]),
+  );
+  return {
+    list: el("ul", { class: "metric__legend" }, ...items),
+    relabel: () => labelEls.forEach((labelEl, k) => setLabel(labelEl, labels[k])),
+  };
+}
+
+/** A single value with an optional sparkline, or several values over time in one chart. */
+function timeRow(metric: ValueMetric | LinesMetric, runner: Runner, window: number): Row {
+  const label = el("span", { class: "metric__label" });
+  const lines = metric.type === "lines" ? Object.values(metric.lines) : [metric];
+  const outputs = lines.map(() => el("span", { class: "metric__value" }, "–"));
+  // Stored points: a common list of times and one list of values per line.
+  const times: number[] = [];
+  const histories = lines.map(() => [] as (number | null)[]);
+  const read = (k: number) => safe(() => lines[k].value(runner.state, runner.values), NaN);
+
+  const plot = metric.type === "lines" || metric.plot !== false;
+  const canvas = plot ? el("canvas", { class: "metric__plot" }) : undefined;
+  let legend: ReturnType<typeof createLegend> | undefined;
+  let root: HTMLElement;
+  if (metric.type === "lines") {
+    legend = createLegend(
+      Object.values(metric.lines).map((line) => line.label),
+      outputs,
+    );
+    root = el("div", { class: "metric metric--plot" }, label, canvas!, legend.list);
+  } else {
+    root = el("div", { class: plot ? "metric metric--plot" : "metric" }, label, outputs[0]);
+    if (canvas) root.append(canvas);
+  }
 
   return {
     root,
     relabel() {
-      label.textContent = text(metric.label);
+      setLabel(label, metric.label);
+      legend?.relabel();
     },
     sample: canvas
       ? (t) => {
           times.push(t);
-          history.push(read());
+          histories.forEach((history, k) => history.push(read(k)));
           // Drop points that scrolled out, but keep one left of the window so the line reaches the edge.
           while (times.length > 2 && times[1] < t - window) {
             times.shift();
-            history.shift();
+            for (const history of histories) history.shift();
           }
         }
       : undefined,
     clear() {
       times.length = 0;
-      history.length = 0;
+      for (const history of histories) history.length = 0;
     },
     display() {
-      output.textContent = format(read(), metric.digits);
+      outputs.forEach((output, k) => (output.textContent = format(read(k), metric.digits)));
     },
     draw() {
       if (!canvas) return;
       const now = runner.time;
       // Before the window is full, time runs from 0 at the left edge; then the plot scrolls.
       const end = Math.max(now, window);
-      drawTimePlot(canvas, times, history, now, read(), end - window, end);
+      drawTimePlot(canvas, times, histories, now, lines.map((_, k) => read(k)), end - window, end);
     },
   };
 }
@@ -182,20 +225,20 @@ function yRange(data: (number | null)[][]): [number, number] | null {
 }
 
 /**
- * Stored points (times, history) plus the current value at time `now` as the line's end,
+ * Stored points (times, histories) plus the current values at time `now` as the line's end,
  * on an x axis from t0 to t1.
  */
 function drawTimePlot(
   canvas: HTMLCanvasElement,
   times: number[],
-  history: (number | null)[],
+  histories: (number | null)[][],
   now: number,
-  current: number | null,
+  current: (number | null)[],
   t0: number,
   t1: number,
 ) {
   const c = prepare(canvas);
-  const range = c && yRange([history, [current]]);
+  const range = c && yRange([...histories, current]);
   if (!c || !range) return;
   const { ctx, w, h, dpr, style } = c;
   const [min, max] = range;
@@ -203,16 +246,18 @@ function drawTimePlot(
   const toX = (t: number) => ((t - t0) / (t1 - t0)) * w;
   const toY = (v: number) => pad + (1 - (v - min) / (max - min)) * (h - 2 * pad);
   ctx.lineWidth = 1.5 * dpr;
-  ctx.strokeStyle = style.color;
-  ctx.beginPath();
-  let started = false; // null (not applicable) or NaN leaves a gap
-  const point = (t: number, v: number | null) => {
-    if (v === null || !Number.isFinite(v)) return void (started = false);
-    if (started) ctx.lineTo(toX(t), toY(v));
-    else ctx.moveTo(toX(t), toY(v));
-    started = true;
-  };
-  history.forEach((v, i) => point(times[i], v));
-  if (times.length === 0 || now > times[times.length - 1]) point(now, current);
-  ctx.stroke();
+  histories.forEach((history, k) => {
+    ctx.strokeStyle = style.getPropertyValue(lineColor(k));
+    ctx.beginPath();
+    let started = false; // null (not applicable) or NaN leaves a gap
+    const point = (t: number, v: number | null) => {
+      if (v === null || !Number.isFinite(v)) return void (started = false);
+      if (started) ctx.lineTo(toX(t), toY(v));
+      else ctx.moveTo(toX(t), toY(v));
+      started = true;
+    };
+    history.forEach((v, i) => point(times[i], v));
+    if (times.length === 0 || now > times[times.length - 1]) point(now, current[k]);
+    ctx.stroke();
+  });
 }
