@@ -24,10 +24,6 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 ## Design
 
-- **Improve default simulation layout**: The idea: top of the page: simulation canvas and right of it the controls and charts; below the canvas, the description and links
-
-- **More Simulations of the same topic**: below the description, show a list of other simulations of the same topic (e.g. "Particles" or "Fluids and heat").
-
 - **Dark/light mode**: toggle plus `prefers-color-scheme`.
 
 - **Design polish and branding**: colors, typography; a logo only after asking.

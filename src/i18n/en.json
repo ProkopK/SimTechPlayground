@@ -16,6 +16,7 @@
   "sim.controls": "Settings",
   "sim.metrics": "Measurements",
   "sim.explanation": "What is happening here?",
+  "sim.related": "More on this topic",
   "sim.fullscreen": "Fullscreen",
   "sim.exitFullscreen": "Exit fullscreen",
   "sim.loading": "Loading simulation …",
