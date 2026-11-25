@@ -197,6 +197,7 @@ function checkContract(/** @type {any} */ sim) {
       }
     } else if (m.type !== undefined && m.type !== "value") error(`metrics.${key}`, `unknown type "${m.type}" (value, lines, distribution)`);
     else if (!isFn(m.value)) error(`metrics.${key}`, "needs value(state, params)");
+    if (m.yScale !== undefined && m.yScale !== "linear" && m.yScale !== "log") error(`metrics.${key}`, 'yScale must be "linear" or "log"');
   }
   return ok;
 }

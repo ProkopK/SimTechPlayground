@@ -106,6 +106,20 @@ function safe<T>(fn: () => T, fallback: T): T {
 
 const format = (v: number | null, digits = 3) => (v !== null && Number.isFinite(v) ? v.toFixed(digits) : "–"); // null = not applicable
 
+/** "⁻¹²" for -12: exponents for labels like 10⁻¹² (canvas text can't do <sup>). */
+const superscript = (n: number) => String(n).replace(/[-0-9]/g, (ch) => "⁻⁰¹²³⁴⁵⁶⁷⁸⁹"["-0123456789".indexOf(ch)]);
+
+/** Scientific notation for log-scale metrics: 3.21 · 10⁻⁵ (`digits` decimals of the mantissa). */
+function formatScientific(v: number | null, digits = 2) {
+  if (v === null || !Number.isFinite(v)) return "–";
+  if (v === 0) return "0";
+  const exponent = Math.floor(Math.log10(Math.abs(v)));
+  const mantissa = (v / 10 ** exponent).toFixed(digits);
+  if (Math.abs(Number(mantissa)) >= 10) return formatScientific(Math.sign(v) * 10 ** (exponent + 1), digits); // 9.999 → 10.00
+  if (exponent === 0) return mantissa;
+  return `${mantissa} · 10${superscript(exponent)}`;
+}
+
 /** Set a label's text; "E_kin" or "E_{kin}" shows "kin" as a subscript. */
 function setLabel(node: HTMLElement, label: Text) {
   const parts = text(label).split(/_\{([^}]*)\}|_([\p{L}\p{N}]+)/u);
@@ -147,6 +161,7 @@ function timeRow(metric: ValueMetric | LinesMetric, runner: Runner, window: numb
 
   const unit = runner.sim.timeUnit;
   const timeAxis = { name: unit ? `t in ${unit.unit}` : "t", scale: unit?.scale ?? 1 };
+  const log = metric.yScale === "log";
   const plot = metric.type === "lines" || metric.plot !== false;
   const canvas = plot ? el("canvas", { class: "metric__plot" }) : undefined;
   let legend: ReturnType<typeof createLegend> | undefined;
@@ -184,14 +199,15 @@ function timeRow(metric: ValueMetric | LinesMetric, runner: Runner, window: numb
       for (const history of histories) history.length = 0;
     },
     display() {
-      outputs.forEach((output, k) => (output.textContent = format(read(k), metric.digits)));
+      const show = log ? formatScientific : format;
+      outputs.forEach((output, k) => (output.textContent = show(read(k), metric.digits)));
     },
     draw() {
       if (!canvas) return;
       const now = runner.time;
       // Before the window is full, time runs from 0 at the left edge; then the plot scrolls.
       const end = Math.max(now, window);
-      drawTimePlot(canvas, times, histories, now, lines.map((_, k) => read(k)), end - window, end, timeAxis);
+      drawTimePlot(canvas, times, histories, now, lines.map((_, k) => read(k)), end - window, end, timeAxis, log);
     },
   };
 }
@@ -237,15 +253,21 @@ function prepare(canvas: HTMLCanvasElement) {
   return { ctx, w, h, dpr, style: getComputedStyle(canvas) };
 }
 
-/** Common y range of all data; null if there is no finite value. */
-function yRange(data: (ArrayLike<number | null> | null)[], fromZero: boolean): [number, number] | null {
+/** Common y range of all data (after `f`, e.g. log10); null if there is no finite value. */
+function yRange(
+  data: (ArrayLike<number | null> | null)[],
+  fromZero: boolean,
+  f: (v: number) => number = (v) => v,
+): [number, number] | null {
   let min = fromZero ? 0 : Infinity;
   let max = fromZero ? 0 : -Infinity;
   for (const values of data) {
     if (!values) continue;
     for (let i = 0; i < values.length; i++) {
-      const v = values[i];
-      if (v === null || !Number.isFinite(v)) continue;
+      const raw = values[i];
+      if (raw === null) continue;
+      const v = f(raw);
+      if (!Number.isFinite(v)) continue;
       if (v < min) min = v;
       if (v > max) max = v;
     }
@@ -290,15 +312,31 @@ function niceTicks(min: number, max: number, count: number) {
 }
 
 /**
+ * Log axis like matplotlib's: [y0, y1] are log10 values. Labels 10ⁿ at whole decades (every
+ * k-th if they don't fit), minor ticks at 2…9 × 10ⁿ.
+ */
+function logTicks(y0: number, y1: number, count: number) {
+  const every = Math.max(1, Math.ceil((y1 - y0) / Math.max(1, count)));
+  const ticks: number[] = [];
+  for (let n = Math.ceil(y0 / every) * every; n <= y1; n += every) ticks.push(n);
+  const minor: number[] = [];
+  if (every === 1)
+    for (let n = y0; n < y1; n++) for (let m = 2; m <= 9; m++) minor.push(n + Math.log10(m));
+  return { ticks, minor, format: (n: number) => `10${superscript(n)}` };
+}
+
+/**
  * Draws grid lines, tick labels and the x axis name, and returns the mapping from data to
- * canvas pixels of the plot area. Afterwards drawing is clipped to the plot area; the caller
- * must call ctx.restore().
+ * canvas pixels of the plot area. With `logY`, y values are log10 values and the range is
+ * widened to whole decades. Afterwards drawing is clipped to the plot area; the caller must
+ * call ctx.restore().
  */
 function drawAxes(
   c: NonNullable<ReturnType<typeof prepare>>,
   [x0, x1]: [number, number],
   [y0, y1]: [number, number],
   xName: string,
+  logY = false,
 ) {
   const { ctx, w, h, dpr, style } = c;
   const fontSize = 10 * dpr;
@@ -307,7 +345,12 @@ function drawAxes(
   const top = fontSize / 2 + gap;
   const bottom = h - fontSize - 2 * gap;
 
-  const y = niceTicks(y0, y1, Math.floor((bottom - top) / (fontSize * 2.5)));
+  if (logY) {
+    y0 = Math.floor(y0);
+    y1 = Math.max(Math.ceil(y1), y0 + 1);
+  }
+  const yCount = Math.floor((bottom - top) / (fontSize * 2.5));
+  const y = logY ? logTicks(y0, y1, yCount) : { ...niceTicks(y0, y1, yCount), minor: [] };
   const yLabels = y.ticks.map(y.format);
   const left = Math.max(...yLabels.map((s) => ctx.measureText(s).width)) + 2 * gap;
   const right = w - gap;
@@ -328,6 +371,16 @@ function drawAxes(
     ctx.lineTo(Math.round(toX(v)) + 0.5, bottom);
   }
   ctx.stroke();
+  // Minor ticks of a log axis: short marks at the left edge, if a decade has room for them.
+  if (y.minor.length > 0 && (bottom - top) / (y1 - y0) >= 2.5 * fontSize) {
+    ctx.strokeStyle = style.getPropertyValue("--color-text-muted");
+    ctx.beginPath();
+    for (const v of y.minor) {
+      ctx.moveTo(left, Math.round(toY(v)) + 0.5);
+      ctx.lineTo(left + gap, Math.round(toY(v)) + 0.5);
+    }
+    ctx.stroke();
+  }
 
   // Labels: y on the left; x below, with the axis name at the right end. Labels that would
   // overlap the name or the previous label are left out.
@@ -370,12 +423,16 @@ function drawTimePlot(
   t0: number,
   t1: number,
   axis: { name: string; scale: number },
+  log: boolean,
 ) {
+  // Log scale: plot log10 of the values; zero and negative values can't be shown (gap).
+  const f = log ? Math.log10 : (v: number) => v;
   const c = prepare(canvas);
-  const range = c && yRange([...histories, current], false);
+  const range = c && yRange([...histories, current], false, f);
   if (!c || !range) return;
   const { ctx, dpr, style } = c;
-  const { toX: toAxisX, toY } = drawAxes(c, [t0 * axis.scale, t1 * axis.scale], range, axis.name);
+  const { toX: toAxisX, toY: toAxisY } = drawAxes(c, [t0 * axis.scale, t1 * axis.scale], range, axis.name, log);
+  const toY = (v: number) => toAxisY(f(v));
   const toX = (t: number) => toAxisX(t * axis.scale);
   ctx.lineWidth = 1.5 * dpr;
   histories.forEach((history, k) => {
@@ -383,7 +440,7 @@ function drawTimePlot(
     ctx.beginPath();
     let started = false; // null (not applicable) or NaN leaves a gap
     const point = (t: number, v: number | null) => {
-      if (v === null || !Number.isFinite(v)) return void (started = false);
+      if (v === null || !Number.isFinite(f(v))) return void (started = false);
       if (started) ctx.lineTo(toX(t), toY(v));
       else ctx.moveTo(toX(t), toY(v));
       started = true;

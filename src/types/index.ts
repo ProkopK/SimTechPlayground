@@ -85,8 +85,10 @@ export interface ValueMetric<S = any> {
   value(state: S, params: Values): number | null;
   /** Show a sparkline (default true). */
   plot?: boolean;
-  /** Decimal places shown (default 3). */
+  /** Decimal places shown (default 3; with yScale "log": of the mantissa, e.g. 3.21 · 10⁻⁵). */
   digits?: number;
+  /** "log" for values spanning many powers of ten (axis 10⁻⁴, 10⁻³ …). Values ≤ 0 aren't plotted. */
+  yScale?: "linear" | "log";
 }
 
 /** One line of a `LinesMetric`. `value` follows the same rules as `ValueMetric.value`. */
@@ -100,8 +102,10 @@ export interface LinesMetric<S = any> {
   type: "lines";
   label: Text;
   lines: Record<string, MetricLine<S>>;
-  /** Decimal places shown (default 3). */
+  /** Decimal places shown (default 3; with yScale "log": of the mantissa). */
   digits?: number;
+  /** "log" for values spanning many powers of ten. Values ≤ 0 aren't plotted. */
+  yScale?: "linear" | "log";
 }
 
 /** One curve of a `DistributionMetric`. */
