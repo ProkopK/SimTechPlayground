@@ -3,6 +3,7 @@ import { onLangChange, t, text } from "../i18n";
 import { simulations, type SimEntry } from "../registry";
 import { simHref } from "../router";
 import { el } from "./dom";
+import { createFooter } from "./footer";
 import { createTopbar } from "./topbar";
 
 export function tile(sim: SimEntry): HTMLElement {
@@ -46,6 +47,7 @@ export function mountLanding(root: HTMLElement): () => void {
         ),
         el("section", { class: "tiles" }, ...simulations.map(tile)),
       ),
+      createFooter(),
     );
   };
   render();

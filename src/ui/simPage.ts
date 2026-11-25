@@ -6,6 +6,7 @@ import { createRunner, type Runner, type SimView } from "../runner/runner";
 import type { Simulation } from "../types";
 import { createControls } from "./controls";
 import { el } from "./dom";
+import { createFooter } from "./footer";
 import { createFullscreen } from "./fullscreen";
 import { renderMarkdown } from "./info";
 import { tile } from "./landing";
@@ -38,8 +39,9 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   const relatedSlot = el("section", { class: "sim-related" });
   const below = el("div", { class: "sim-below" }, el("section", { class: "sim-info" }, infoHeading, infoBody), relatedSlot);
   const topbarSlot = el("div", { class: "topbar-slot" });
+  const footerSlot = el("div");
   const page = el("main", { class: "sim-page" }, top, below);
-  root.replaceChildren(topbarSlot, page);
+  root.replaceChildren(topbarSlot, page, footerSlot);
   const fullscreen = createFullscreen(top);
 
   let runner: Runner | undefined;
@@ -50,6 +52,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   /** (Re)build everything that shows translated text; the running simulation is kept. */
   function renderTexts() {
     topbarSlot.replaceChildren(createTopbar(back()));
+    footerSlot.replaceChildren(createFooter(id));
     title.textContent = text(entry!.meta.title);
     document.title = `${text(entry!.meta.title)} · ${t("site.title")}`;
     controls?.dispose();

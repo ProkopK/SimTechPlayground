@@ -26,8 +26,6 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 - **Design polish and branding**: colors, typography; a logo only after asking.
 
-- **Feedback links to GitHub Issues**: small "Fehler melden" / "Simulation wünschen" links (e.g. in the footer) that open the issue forms in `.github/ISSUE_TEMPLATE/`; on a simulation page the bug link pre-fills the simulation id.
-  - Note: visitors need a GitHub account to open an issue.
 
 ## Desciption
 

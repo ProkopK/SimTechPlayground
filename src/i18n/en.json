@@ -8,6 +8,8 @@
   "nav.language": "Language",
   "lang.de": "Deutsch",
   "lang.en": "English",
+  "footer.reportBug": "Report a bug",
+  "footer.requestSim": "Request a simulation",
   "theme.dark": "Dark theme",
   "theme.light": "Light theme",
   "sim.pause": "Pause",
