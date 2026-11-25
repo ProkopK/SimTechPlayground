@@ -145,6 +145,8 @@ function checkContract(/** @type {any} */ sim) {
   }
   for (const key of ["dt", "stepsPerSecond", "maxSpeed", "maxStepsPerFrame"])
     if (sim[key] !== undefined && !(sim[key] > 0)) error(where, `${key} must be a positive number`);
+  if (sim.timeUnit !== undefined && !(typeof sim.timeUnit.unit === "string" && (sim.timeUnit.scale ?? 1) > 0))
+    error(where, "timeUnit needs { unit: string, scale?: positive number }");
 
   for (const [key, p] of Object.entries(sim.params ?? {})) {
     const at = `params.${key}`;

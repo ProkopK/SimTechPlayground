@@ -147,6 +147,11 @@ interface SimulationBase<S> {
   maxSpeed?: number;
   /** Safety cap of steps per rendered frame; surplus steps are dropped on slow devices. */
   maxStepsPerFrame?: number;
+  /**
+   * Time axis of the charts: simulation time × `scale` in `unit`, e.g. { unit: "fs", scale: 0.0242 }
+   * for atomic units shown in femtoseconds. Default: plain simulation time t.
+   */
+  timeUnit?: { unit: string; scale?: number };
 
   /** Create the initial state. */
   init(params: Values): S;

@@ -137,6 +137,8 @@ function timeRow(metric: ValueMetric | LinesMetric, runner: Runner, window: numb
   const histories = lines.map(() => [] as (number | null)[]);
   const read = (k: number) => safe(() => lines[k].value(runner.state, runner.values), NaN);
 
+  const unit = runner.sim.timeUnit;
+  const timeAxis = { name: unit ? `t in ${unit.unit}` : "t", scale: unit?.scale ?? 1 };
   const plot = metric.type === "lines" || metric.plot !== false;
   const canvas = plot ? el("canvas", { class: "metric__plot" }) : undefined;
   let legend: ReturnType<typeof createLegend> | undefined;
@@ -181,7 +183,7 @@ function timeRow(metric: ValueMetric | LinesMetric, runner: Runner, window: numb
       const now = runner.time;
       // Before the window is full, time runs from 0 at the left edge; then the plot scrolls.
       const end = Math.max(now, window);
-      drawTimePlot(canvas, times, histories, now, lines.map((_, k) => read(k)), end - window, end);
+      drawTimePlot(canvas, times, histories, now, lines.map((_, k) => read(k)), end - window, end, timeAxis);
     },
   };
 }
@@ -224,9 +226,102 @@ function yRange(data: (number | null)[][]): [number, number] | null {
   return [min, max];
 }
 
+/** Tick positions at 1, 2 or 5 × 10^k: about `count` of them within [min, max], but at least 2. */
+function niceTicks(min: number, max: number, count: number) {
+  const raw = (max - min) / Math.max(1, count);
+  let decade = 10 ** Math.floor(Math.log10(raw));
+  let factor = [1, 2, 5, 10].find((f) => f * decade >= raw) ?? 10;
+  const list = (step: number) => {
+    const ticks: number[] = [];
+    for (let v = Math.ceil(min / step) * step; v <= max + step * 1e-9; v += step) ticks.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+    return ticks;
+  };
+  let ticks = list(factor * decade);
+  while (ticks.length < 2) {
+    // Next smaller nice step: 10 → 5 → 2 → 1 → 0.5 …
+    if (factor === 1) [factor, decade] = [5, decade / 10];
+    else factor = factor === 10 ? 5 : factor === 5 ? 2 : 1;
+    ticks = list(factor * decade);
+  }
+  const step = factor * decade;
+  // Enough decimals to tell neighboring ticks apart; exponent notation for extreme magnitudes.
+  const decimals = Math.max(0, -Math.floor(Math.log10(step) + 1e-9));
+  const big = Math.max(Math.abs(min), Math.abs(max)) >= 1e6;
+  const format = (v: number) => (big || decimals > 5 ? v.toExponential(1) : v.toFixed(decimals));
+  return { ticks, format };
+}
+
+/**
+ * Draws grid lines, tick labels and the x axis name, and returns the mapping from data to
+ * canvas pixels of the plot area. Afterwards drawing is clipped to the plot area; the caller
+ * must call ctx.restore().
+ */
+function drawAxes(
+  c: NonNullable<ReturnType<typeof prepare>>,
+  [x0, x1]: [number, number],
+  [y0, y1]: [number, number],
+  xName: string,
+) {
+  const { ctx, w, h, dpr, style } = c;
+  const fontSize = 10 * dpr;
+  ctx.font = `${fontSize}px ${style.fontFamily}`;
+  const gap = 3 * dpr;
+  const top = fontSize / 2 + gap;
+  const bottom = h - fontSize - 2 * gap;
+
+  const y = niceTicks(y0, y1, Math.floor((bottom - top) / (fontSize * 2.5)));
+  const yLabels = y.ticks.map(y.format);
+  const left = Math.max(...yLabels.map((s) => ctx.measureText(s).width)) + 2 * gap;
+  const right = w - gap;
+  const toX = (v: number) => left + ((v - x0) / (x1 - x0)) * (right - left);
+  const toY = (v: number) => bottom - ((v - y0) / (y1 - y0)) * (bottom - top);
+  const x = niceTicks(x0, x1, Math.floor((right - left) / (60 * dpr)));
+
+  // Grid lines
+  ctx.strokeStyle = style.getPropertyValue("--color-border");
+  ctx.lineWidth = dpr;
+  ctx.beginPath();
+  for (const v of y.ticks) {
+    ctx.moveTo(left, Math.round(toY(v)) + 0.5);
+    ctx.lineTo(right, Math.round(toY(v)) + 0.5);
+  }
+  for (const v of x.ticks) {
+    ctx.moveTo(Math.round(toX(v)) + 0.5, top);
+    ctx.lineTo(Math.round(toX(v)) + 0.5, bottom);
+  }
+  ctx.stroke();
+
+  // Labels: y on the left; x below, with the axis name at the right end. Labels that would
+  // overlap the name or the previous label are left out.
+  ctx.fillStyle = style.getPropertyValue("--color-text-muted");
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  y.ticks.forEach((v, i) => ctx.fillText(yLabels[i], left - gap, toY(v)));
+  ctx.textBaseline = "top";
+  const labelY = bottom + gap;
+  ctx.fillText(xName, right, labelY);
+  let free = left - ctx.measureText(x.format(x.ticks[0] ?? 0)).width; // leftmost allowed position
+  const limit = right - ctx.measureText(xName).width - 2 * gap;
+  ctx.textAlign = "left";
+  for (const v of x.ticks) {
+    const s = x.format(v);
+    const width = ctx.measureText(s).width;
+    const start = Math.max(0, toX(v) - width / 2);
+    if (start < free || start + width > limit) continue;
+    ctx.fillText(s, start, labelY);
+    free = start + width + 2 * gap;
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(left, top, right - left, bottom - top);
+  ctx.clip();
+  return { toX, toY };
+}
+
 /**
  * Stored points (times, histories) plus the current values at time `now` as the line's end,
- * on an x axis from t0 to t1.
+ * on a time axis from t0 to t1 (simulation time; labelled as t × scale).
  */
 function drawTimePlot(
   canvas: HTMLCanvasElement,
@@ -236,15 +331,14 @@ function drawTimePlot(
   current: (number | null)[],
   t0: number,
   t1: number,
+  axis: { name: string; scale: number },
 ) {
   const c = prepare(canvas);
   const range = c && yRange([...histories, current]);
   if (!c || !range) return;
-  const { ctx, w, h, dpr, style } = c;
-  const [min, max] = range;
-  const pad = 2 * dpr;
-  const toX = (t: number) => ((t - t0) / (t1 - t0)) * w;
-  const toY = (v: number) => pad + (1 - (v - min) / (max - min)) * (h - 2 * pad);
+  const { ctx, dpr, style } = c;
+  const { toX: toAxisX, toY } = drawAxes(c, [t0 * axis.scale, t1 * axis.scale], range, axis.name);
+  const toX = (t: number) => toAxisX(t * axis.scale);
   ctx.lineWidth = 1.5 * dpr;
   histories.forEach((history, k) => {
     ctx.strokeStyle = style.getPropertyValue(lineColor(k));
@@ -260,4 +354,5 @@ function drawTimePlot(
     if (times.length === 0 || now > times[times.length - 1]) point(now, current[k]);
     ctx.stroke();
   });
+  ctx.restore();
 }

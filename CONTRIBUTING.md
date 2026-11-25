@@ -161,6 +161,8 @@ energy: {
 },
 ```
 
+To show the time axis it in a physical unit, set `timeUnit` on the simulation, e.g. `timeUnit: { unit: "fs", scale: 0.0242 }` for atomic units in femtoseconds. Otherwise, steps × `dt` is shown.
+
 ### Pointer input (mouse and touch)
 
 ```js
