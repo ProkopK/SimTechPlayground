@@ -29,7 +29,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   const title = el("h1", { class: "sim-title" });
   const stage = el("div", { class: "sim-stage" }, el("p", { class: "message" }, t("sim.loading")));
   const controlsSlot = el("div");
-  const metricsSlot = el("div");
+  const metricsSlot = el("div", { class: "sim-metrics-slot" });
   const side = el("aside", { class: "sim-side" }, title, controlsSlot, metricsSlot);
   const top = el("div", { class: "sim-top" }, stage, side);
   // Below the fold: explanation and related simulations. The heading is static so it

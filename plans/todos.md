@@ -42,8 +42,6 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 - **Chart legend**: add a legend to the chart (e.g. for the Lennard-Jones energy components).
 
-- **Chart size**: the chart is currently fixed to 200px height; make it resizable or fill the available space.
-
 - **2D sliders**: support for 2D sliders (e.g. ising model like https://www.youtube.com/watch?v=itRV2jEtV8Q)
 
 - **Constant slider length**: the slider length depends on the length of the label

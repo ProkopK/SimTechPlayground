@@ -107,7 +107,7 @@ function timeRow(metric: Metric, runner: Runner, window: number): Row {
   const read = () => safe(() => metric.value(runner.state, runner.values), NaN);
 
   const canvas = metric.plot === false ? undefined : el("canvas", { class: "metric__plot" });
-  const root = el("div", { class: "metric" }, label, output);
+  const root = el("div", { class: canvas ? "metric metric--plot" : "metric" }, label, output);
   if (canvas) root.append(canvas);
 
   return {
