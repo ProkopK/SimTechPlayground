@@ -136,7 +136,7 @@ presets: {
 
 ### Metrics
 
-Numbers shown below the controls, with a small plot over the last 30 seconds:
+Numbers shown below the controls, with a small plot over time (the last 30 seconds at speed ×1):
 
 ```js
 metrics: {
@@ -145,7 +145,7 @@ metrics: {
 },
 ```
 
-`value` is called ten times per second and must be cheap. Compute expensive quantities in `step` and store them on the state. Return `null` when a value doesn't apply in the current setup; it is shown as "–".
+`value` is called often and must be cheap (called every frame, plus ten plot points per simulated second at speed ×1). Compute expensive quantities in `step` and store them on the state. Return `null` when a value doesn't apply in the current setup; it is shown as "–".
 
 ### Pointer input (mouse and touch)
 

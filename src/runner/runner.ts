@@ -23,6 +23,17 @@ export function createRunner(sim: Simulation, view: SimView, onCrash: (error: un
   let speed = 1;
   let crashed = false;
   let stepCount = 0;
+  let time = 0;
+  const stepListeners = new Set<() => void>();
+  const resetListeners = new Set<() => void>();
+
+  /** Start over from a new state: simulation time restarts at 0 and listeners are told. */
+  function replaceState(newState: unknown) {
+    state = newState;
+    time = 0;
+    view.reset?.(state, values);
+    for (const fn of resetListeners) fn();
+  }
 
   /** Run simulation code; on an exception, stop and report instead of breaking the page. */
   function guard(fn: () => void) {
@@ -38,10 +49,7 @@ export function createRunner(sim: Simulation, view: SimView, onCrash: (error: un
 
   function reset(newState?: unknown) {
     crashed = false;
-    guard(() => {
-      state = newState ?? sim.init(values);
-      view.reset?.(state, values);
-    });
+    guard(() => replaceState(newState ?? sim.init(values)));
   }
 
   const loop = createLoop({
@@ -49,8 +57,12 @@ export function createRunner(sim: Simulation, view: SimView, onCrash: (error: un
     cap: stepCap(sim),
     step(count) {
       guard(() => {
-        for (let i = 0; i < count; i++) sim.step(state, values, dt);
-        stepCount += count;
+        for (let i = 0; i < count; i++) {
+          sim.step(state, values, dt);
+          stepCount++;
+          time += dt;
+          for (const fn of stepListeners) fn();
+        }
       });
     },
     render() {
@@ -81,6 +93,20 @@ export function createRunner(sim: Simulation, view: SimView, onCrash: (error: un
     get stepCount() {
       return stepCount;
     },
+    /** Call `fn` after every simulation step (e.g. to sample metrics in simulation time). Returns an unsubscribe function. */
+    onStep(fn: () => void): () => void {
+      stepListeners.add(fn);
+      return () => stepListeners.delete(fn);
+    },
+    /** Call `fn` whenever the state is replaced (reset, scenario, button returning a new state). Returns an unsubscribe function. */
+    onReset(fn: () => void): () => void {
+      resetListeners.add(fn);
+      return () => resetListeners.delete(fn);
+    },
+    /** Simulation time since the state was last replaced (steps × dt). */
+    get time() {
+      return time;
+    },
     reset,
     /** Change a parameter; resets if the parameter is marked `resetOnChange`. */
     setValue(key: string, value: unknown) {
@@ -94,10 +120,7 @@ export function createRunner(sim: Simulation, view: SimView, onCrash: (error: un
       if (param?.type !== "button") return;
       guard(() => {
         const result = param.action(state, values);
-        if (result !== undefined) {
-          state = result;
-          view.reset?.(state, values);
-        }
+        if (result !== undefined) replaceState(result);
       });
     },
     /** Apply a preset: its parameter values first, then its state (or a reset if needed). */

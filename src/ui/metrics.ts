@@ -1,83 +1,176 @@
 /**
- * Shows a simulation's metrics as numbers with a small time-series plot (sparkline).
- * Samples a few times per second, independent of the frame rate.
+ * Shows a simulation's metrics below the controls: numbers with a small time-series plot.
+ * Time plots show the last WINDOW_S seconds at speed ×1, measured in simulation time: a faster
+ * speed scrolls faster but doesn't squeeze the curve. Points are stored at fixed simulation time
+ * intervals; the line always ends at the current value, and the plots are redrawn every frame,
+ * so they move smoothly even at a very low speed.
  */
 import { t, text } from "../i18n";
 import type { Runner } from "../runner/runner";
+import type { Metric } from "../types";
 import { el } from "./dom";
 
-const SAMPLE_MS = 100;
-const HISTORY = 300; // 30 s at 10 samples per second
+const WINDOW_S = 30; // time shown in a time plot, in real seconds at speed ×1
+const SAMPLES = 300; // stored points per window
+const DISPLAY_MS = 100; // how often the numbers are updated (plots: every frame)
+
+interface Row {
+  root: HTMLElement;
+  relabel(): void;
+  /** Record a plot point at simulation time t (time plots only). */
+  sample?(t: number): void;
+  /** Forget the recorded plot points (after a reset). */
+  clear?(): void;
+  /** Update the numbers. */
+  display(): void;
+  /** Redraw the chart. */
+  draw(): void;
+}
 
 export function createMetrics(container: HTMLElement, runner: Runner) {
   const entries = Object.entries(runner.sim.metrics ?? {});
   if (entries.length === 0) return { relabel() {}, dispose() {} };
 
   const heading = el("h2", {});
-  const rows = entries.map(([, metric]) => {
-    const label = el("span", { class: "metric__label" });
-    const value = el("span", { class: "metric__value" }, "–");
-    const canvas = metric.plot === false ? undefined : el("canvas", { class: "metric__plot" });
-    const row = el("div", { class: "metric" }, label, value);
-    if (canvas) row.append(canvas);
-    return { metric, label, value, canvas, history: [] as (number | null)[] };
-  });
-  const root = el("section", { class: "sim-metrics" }, heading, ...rows.map((r) => r.label.parentElement!));
+  // Simulation time shown at once, and between two stored points.
+  const window = WINDOW_S * (runner.sim.stepsPerSecond ?? 60) * (runner.sim.dt ?? 1);
+  const interval = window / SAMPLES;
+  const rows = entries.map(([, metric]) => timeRow(metric, runner, window));
+  const root = el("section", { class: "sim-metrics" }, heading, ...rows.map((r) => r.root));
   container.append(root);
 
   function relabel() {
     heading.textContent = t("sim.metrics");
-    for (const r of rows) r.label.textContent = text(r.metric.label);
+    for (const r of rows) r.relabel();
   }
   relabel();
 
-  function sample() {
-    if (runner.paused || runner.state === undefined) return;
-    for (const r of rows) {
-      let v: number | null;
-      try {
-        v = r.metric.value(runner.state, runner.values);
-      } catch {
-        v = NaN;
-      }
-      r.value.textContent = v !== null && Number.isFinite(v) ? v.toFixed(r.metric.digits ?? 3) : "–"; // null = not applicable
-      if (!r.canvas) continue;
-      r.history.push(v);
-      if (r.history.length > HISTORY) r.history.shift();
-      drawSparkline(r.canvas, r.history);
-    }
+  // Store a plot point every `interval` of simulation time.
+  let nextSample = 0;
+  const offStep = runner.onStep(() => {
+    const t = runner.time;
+    if (t < nextSample - 1e-9 * interval) return;
+    nextSample = Math.max(nextSample + interval, t);
+    for (const r of rows) r.sample?.(t);
+  });
+  // After a reset the plots start empty at the left again.
+  const offReset = runner.onReset(() => {
+    nextSample = 0;
+    for (const r of rows) r.clear?.();
+  });
+
+  function display() {
+    if (runner.state === undefined) return;
+    for (const r of rows) r.display();
   }
-  const timer = setInterval(sample, SAMPLE_MS);
-  sample();
+  const timer = setInterval(display, DISPLAY_MS);
+  display();
+
+  // Plots: every frame, also while paused (they change size when the panel layout changes).
+  let frame = 0;
+  const drawAll = () => {
+    frame = requestAnimationFrame(drawAll);
+    if (runner.state !== undefined) for (const r of rows) r.draw();
+  };
+  drawAll();
 
   return {
     relabel,
     dispose() {
       clearInterval(timer);
+      cancelAnimationFrame(frame);
+      offStep();
+      offReset();
       root.remove();
     },
   };
 }
 
-function drawSparkline(canvas: HTMLCanvasElement, values: (number | null)[]) {
+/** Call simulation code; an exception shows up as NaN ("–") instead of breaking the panel. */
+function safe<T>(fn: () => T, fallback: T): T {
+  try {
+    return fn();
+  } catch {
+    return fallback;
+  }
+}
+
+const format = (v: number | null, digits = 3) => (v !== null && Number.isFinite(v) ? v.toFixed(digits) : "–"); // null = not applicable
+
+/** A single value with an optional sparkline. */
+function timeRow(metric: Metric, runner: Runner, window: number): Row {
+  const label = el("span", { class: "metric__label" });
+  const output = el("span", { class: "metric__value" }, "–");
+  // Stored points: their times and values.
+  const times: number[] = [];
+  const history: (number | null)[] = [];
+  const read = () => safe(() => metric.value(runner.state, runner.values), NaN);
+
+  const canvas = metric.plot === false ? undefined : el("canvas", { class: "metric__plot" });
+  const root = el("div", { class: "metric" }, label, output);
+  if (canvas) root.append(canvas);
+
+  return {
+    root,
+    relabel() {
+      label.textContent = text(metric.label);
+    },
+    sample: canvas
+      ? (t) => {
+          times.push(t);
+          history.push(read());
+          // Drop points that scrolled out, but keep one left of the window so the line reaches the edge.
+          while (times.length > 2 && times[1] < t - window) {
+            times.shift();
+            history.shift();
+          }
+        }
+      : undefined,
+    clear() {
+      times.length = 0;
+      history.length = 0;
+    },
+    display() {
+      output.textContent = format(read(), metric.digits);
+    },
+    draw() {
+      if (!canvas) return;
+      const now = runner.time;
+      // Before the window is full, time runs from 0 at the left edge; then the plot scrolls.
+      const end = Math.max(now, window);
+      drawTimePlot(canvas, times, history, now, read(), end - window, end);
+    },
+  };
+}
+
+/** Match the canvas' pixel size to its CSS size (sharp on HiDPI). Returns null if hidden. */
+function prepare(canvas: HTMLCanvasElement) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const w = Math.round(canvas.clientWidth * dpr);
   const h = Math.round(canvas.clientHeight * dpr);
-  if (w === 0 || h === 0) return;
+  if (w === 0 || h === 0) return null;
   if (canvas.width !== w || canvas.height !== h) {
     canvas.width = w;
     canvas.height = h;
   }
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h, dpr, style: getComputedStyle(canvas) };
+}
+
+/** Common y range of all data; null if there is no finite value. */
+function yRange(data: (number | null)[][]): [number, number] | null {
   let min = Infinity;
   let max = -Infinity;
-  for (const v of values) {
-    if (v === null || !Number.isFinite(v)) continue;
-    if (v < min) min = v;
-    if (v > max) max = v;
+  for (const values of data) {
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i];
+      if (v === null || !Number.isFinite(v)) continue;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
   }
-  if (min === Infinity) return;
+  if (min === Infinity) return null;
   // Minimum span of 1% of the magnitude, so tiny numerical noise doesn't look like a big wave.
   const span = Math.max(1e-9, 0.01 * Math.max(Math.abs(min), Math.abs(max)));
   if (max - min < span) {
@@ -85,16 +178,41 @@ function drawSparkline(canvas: HTMLCanvasElement, values: (number | null)[]) {
     min = mid - span / 2;
     max = mid + span / 2;
   }
+  return [min, max];
+}
+
+/**
+ * Stored points (times, history) plus the current value at time `now` as the line's end,
+ * on an x axis from t0 to t1.
+ */
+function drawTimePlot(
+  canvas: HTMLCanvasElement,
+  times: number[],
+  history: (number | null)[],
+  now: number,
+  current: number | null,
+  t0: number,
+  t1: number,
+) {
+  const c = prepare(canvas);
+  const range = c && yRange([history, [current]]);
+  if (!c || !range) return;
+  const { ctx, w, h, dpr, style } = c;
+  const [min, max] = range;
   const pad = 2 * dpr;
-  ctx.strokeStyle = getComputedStyle(canvas).color;
+  const toX = (t: number) => ((t - t0) / (t1 - t0)) * w;
+  const toY = (v: number) => pad + (1 - (v - min) / (max - min)) * (h - 2 * pad);
   ctx.lineWidth = 1.5 * dpr;
+  ctx.strokeStyle = style.color;
   ctx.beginPath();
-  values.forEach((v, i) => {
-    if (v === null || !Number.isFinite(v)) return;
-    const x = (i / (HISTORY - 1)) * w;
-    const y = pad + (1 - (v - min) / (max - min)) * (h - 2 * pad);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
+  let started = false; // null (not applicable) or NaN leaves a gap
+  const point = (t: number, v: number | null) => {
+    if (v === null || !Number.isFinite(v)) return void (started = false);
+    if (started) ctx.lineTo(toX(t), toY(v));
+    else ctx.moveTo(toX(t), toY(v));
+    started = true;
+  };
+  history.forEach((v, i) => point(times[i], v));
+  if (times.length === 0 || now > times[times.length - 1]) point(now, current);
   ctx.stroke();
 }

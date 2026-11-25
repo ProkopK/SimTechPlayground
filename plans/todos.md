@@ -44,8 +44,6 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 - **Chart size**: the chart is currently fixed to 200px height; make it resizable or fill the available space.
 
-- **Follow the specified simulation time**: the chart currently follows the wall clock time; change it to follow the simulation time (faster simulations produce more data points per second).
-
 - **2D sliders**: support for 2D sliders (e.g. ising model like https://www.youtube.com/watch?v=itRV2jEtV8Q)
 
 - **Constant slider length**: the slider length depends on the length of the label
