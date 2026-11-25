@@ -24,6 +24,8 @@ export function createRunner(sim: Simulation, view: SimView, onCrash: (error: un
   let crashed = false;
   let stepCount = 0;
   let time = 0;
+  /** The last chosen preset; reset starts from its state again. */
+  let presetKey: string | undefined;
   const stepListeners = new Set<() => void>();
   const resetListeners = new Set<() => void>();
 
@@ -47,9 +49,15 @@ export function createRunner(sim: Simulation, view: SimView, onCrash: (error: un
     }
   }
 
+  /** A fresh state for the current scenario: the chosen preset's state if it has one, else `init`. */
+  function initialState() {
+    const presetState = presetKey ? sim.presets?.[presetKey]?.state : undefined;
+    return presetState ? presetState(values) : sim.init(values);
+  }
+
   function reset(newState?: unknown) {
     crashed = false;
-    guard(() => replaceState(newState ?? sim.init(values)));
+    guard(() => replaceState(newState ?? initialState()));
   }
 
   const loop = createLoop({
@@ -108,6 +116,10 @@ export function createRunner(sim: Simulation, view: SimView, onCrash: (error: un
       return time;
     },
     reset,
+    /** Key of the last chosen preset, if any (to show it in the dropdown). */
+    get preset() {
+      return presetKey;
+    },
     /** Change a parameter; resets if the parameter is marked `resetOnChange`. */
     setValue(key: string, value: unknown) {
       values[key] = value;
@@ -127,16 +139,14 @@ export function createRunner(sim: Simulation, view: SimView, onCrash: (error: un
     applyPreset(key: string) {
       const preset = sim.presets?.[key];
       if (!preset) return;
+      presetKey = key;
       let needsReset = false;
       for (const [k, v] of Object.entries(preset.params ?? {})) {
         const param = sim.params?.[k];
         if (param && param.type !== "button" && param.resetOnChange && values[k] !== v) needsReset = true;
         values[k] = v;
       }
-      if (preset.state) {
-        crashed = false;
-        guard(() => reset(preset.state!(values)));
-      } else if (needsReset) reset();
+      if (preset.state || needsReset) reset();
     },
     pointer(info: PointerInfo) {
       if (sim.onPointer) guard(() => sim.onPointer!(state, values, info));

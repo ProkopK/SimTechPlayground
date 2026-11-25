@@ -10,8 +10,6 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 ## Language and translation
 
-- **Preset dropdown after language switch**: it shows "–" again because the controls are rebuilt.
-
 - **Crash overlay language**: the "Simulation abgestürzt" text is not re-translated on a language switch (it is created once).
 
 - **English explanation texts**: `info.en.md` for all simulations.
@@ -45,8 +43,6 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 - **Web Worker for heavy `step`s**: optionally run `step` off the main thread (hydrogen sampling, electronic structure). The strict step/draw split keeps this possible.
 
 - **3D pointer input**: an `onPointer3d` with a ray, if a 3D simulation needs interaction beyond orbit/zoom (e.g. picking an orbital).
-
-- **Reset button should not change the selected szenario**: keep the current scenario when resetting the simulation.
 
 - **Warning when system is unstable**: e.g. when the Lennard-Jones simulation energy diverges, wind tunnel flow blocked / unstable
 

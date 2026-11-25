@@ -36,7 +36,7 @@ export function createControls(
   const refresh = () => gui.controllersRecursive().forEach((c) => c.updateDisplay());
 
   if (sim.presets) {
-    const choice = { preset: "" };
+    const choice = { preset: runner.preset ?? "" }; // keeps the choice when the controls are rebuilt
     const options: Record<string, string> = { "–": "" };
     for (const [key, preset] of Object.entries(sim.presets)) options[text(preset.label)] = key;
     gui
