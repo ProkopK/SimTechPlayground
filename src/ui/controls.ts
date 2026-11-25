@@ -7,22 +7,30 @@ import { t, text } from "../i18n";
 import type { Runner } from "../runner/runner";
 import { el } from "./dom";
 
-export function createControls(container: HTMLElement, runner: Runner, extraButtons: HTMLElement[] = []) {
+export function createControls(
+  container: HTMLElement,
+  toolbarContainer: HTMLElement,
+  runner: Runner,
+  extraButtons: HTMLElement[] = [],
+) {
   const { sim, values } = runner;
   const root = el("div", { class: "sim-controls" });
   container.append(root);
 
-  // Pause/resume and reset as large, always-visible buttons.
-  const pauseBtn = el("button", { class: "btn" });
-  const resetBtn = el("button", { class: "btn" }, `↺ ${t("sim.reset")}`);
-  const updatePause = () => (pauseBtn.textContent = runner.paused ? `▶ ${t("sim.resume")}` : `⏸ ${t("sim.pause")}`);
+  // Pause/resume and reset as small icon buttons floating over the simulation.
+  const pauseBtn = el("button", { class: "btn btn--icon" });
+  const resetBtn = iconButton("↺", t("sim.reset"));
+  // ︎ asks for the plain text glyph instead of a colored emoji.
+  const updatePause = () =>
+    setIcon(pauseBtn, runner.paused ? "▶︎" : "⏸︎", t(runner.paused ? "sim.resume" : "sim.pause"));
   pauseBtn.addEventListener("click", () => {
     runner.paused = !runner.paused;
     updatePause();
   });
   resetBtn.addEventListener("click", () => runner.reset());
   updatePause();
-  root.append(el("div", { class: "sim-toolbar" }, pauseBtn, resetBtn, ...extraButtons));
+  const toolbar = el("div", { class: "sim-toolbar" }, pauseBtn, resetBtn, ...extraButtons);
+  toolbarContainer.append(toolbar);
 
   const gui = new GUI({ container: root, title: t("sim.controls") });
   const refresh = () => gui.controllersRecursive().forEach((c) => c.updateDisplay());
@@ -85,6 +93,20 @@ export function createControls(container: HTMLElement, runner: Runner, extraButt
     dispose() {
       gui.destroy();
       root.remove();
+      toolbar.remove();
     },
   };
+}
+
+/** A small round button showing only an icon; the label is its tooltip and accessible name. */
+export function iconButton(icon: string, label: string): HTMLButtonElement {
+  const button = el("button", { class: "btn btn--icon" });
+  setIcon(button, icon, label);
+  return button;
+}
+
+export function setIcon(button: HTMLElement, icon: string, label: string) {
+  button.textContent = icon;
+  button.title = label;
+  button.setAttribute("aria-label", label);
 }

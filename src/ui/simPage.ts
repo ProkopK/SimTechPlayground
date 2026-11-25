@@ -53,10 +53,11 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   function renderTexts() {
     topbarSlot.replaceChildren(createTopbar(back()));
     footerSlot.replaceChildren(createFooter(id));
-    title.textContent = text(entry!.meta.title);
+    // Only the short name before the colon, so the title fits on one line.
+    title.textContent = text(entry!.meta.title).split(":")[0];
     document.title = `${text(entry!.meta.title)} · ${t("site.title")}`;
     controls?.dispose();
-    if (runner) controls = createControls(controlsSlot, runner, [fullscreen.button()]);
+    if (runner) controls = createControls(controlsSlot, stage, runner, [fullscreen.button()]);
     metrics?.relabel();
     infoHeading.textContent = t("sim.explanation");
     renderInfo();

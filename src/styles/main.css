@@ -360,6 +360,9 @@ button {
 .sim-title {
   font-size: 1.4rem;
   margin: 0 0 var(--space-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sim-crash {
@@ -413,11 +416,31 @@ button {
   }
 }
 
+/* Pause, reset and fullscreen as small icon buttons in the bottom corner of the simulation. */
 .sim-toolbar {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  z-index: 2; /* above the crash overlay, so reset stays reachable */
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  gap: var(--space-1);
+}
+
+.btn--icon {
+  justify-content: center;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+@media (pointer: coarse) {
+  .btn--icon {
+    width: 40px;
+    min-height: 40px;
+  }
 }
 
 .sim-controls .lil-gui.lil-root {
@@ -583,7 +606,7 @@ button {
   top: var(--space-3);
   right: var(--space-3);
   width: min(340px, calc(100% - 2 * var(--space-3)));
-  max-height: calc(100% - 2 * var(--space-3));
+  max-height: calc(100% - 2 * var(--space-3) - 48px); /* leaves room for the toolbar below */
   padding: var(--space-2);
   border: none;
   border-radius: var(--radius);
@@ -593,10 +616,6 @@ button {
 
 .is-fullscreen .sim-title {
   display: none;
-}
-
-.is-fullscreen .sim-toolbar {
-  margin-bottom: var(--space-2);
 }
 
 .is-fullscreen .sim-metrics h2 {
@@ -612,5 +631,11 @@ button {
     left: var(--space-2);
     width: auto;
     max-height: 45%;
+  }
+
+  /* The controls cover the bottom here, so the buttons move to the top corner. */
+  .is-fullscreen .sim-toolbar {
+    top: var(--space-2);
+    bottom: auto;
   }
 }
