@@ -1,4 +1,5 @@
 import "./styles/main.css";
+import "./ui/theme"; // apply a stored theme choice before the first render
 import { parseRoute } from "./router";
 import { mountLanding } from "./ui/landing";
 

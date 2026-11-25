@@ -8,6 +8,8 @@
   "nav.language": "Language",
   "lang.de": "Deutsch",
   "lang.en": "English",
+  "theme.dark": "Dark theme",
+  "theme.light": "Light theme",
   "sim.pause": "Pause",
   "sim.resume": "Resume",
   "sim.reset": "Reset",

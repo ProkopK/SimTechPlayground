@@ -8,6 +8,8 @@
   "nav.language": "Sprache",
   "lang.de": "Deutsch",
   "lang.en": "English",
+  "theme.dark": "Dunkles Design",
+  "theme.light": "Helles Design",
   "sim.pause": "Pause",
   "sim.resume": "Weiter",
   "sim.reset": "Zurücksetzen",
