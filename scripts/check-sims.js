@@ -183,13 +183,19 @@ function checkContract(/** @type {any} */ sim) {
   }
   for (const [key, m] of Object.entries(sim.metrics ?? {})) {
     if (!isText(m.label)) error(`metrics.${key}`, "needs a label with German text");
-    if (m.type === "lines") {
+    if (m.type === "lines" || m.type === "distribution") {
+      const fn = m.type === "lines" ? "value" : "values";
       if (Object.keys(m.lines ?? {}).length === 0) error(`metrics.${key}`, "needs at least one entry in lines");
       for (const [k, line] of Object.entries(m.lines ?? {})) {
         if (!isText(line.label)) error(`metrics.${key}.lines.${k}`, "needs a label with German text");
-        if (!isFn(line.value)) error(`metrics.${key}.lines.${k}`, "needs value(state, params)");
+        if (!isFn(line[fn])) error(`metrics.${key}.lines.${k}`, `needs ${fn}(state, params)`);
+        if (line.style !== undefined && !["line", "bars"].includes(line.style)) error(`metrics.${key}.lines.${k}`, 'style must be "line" or "bars"');
       }
-    } else if (m.type !== undefined && m.type !== "value") error(`metrics.${key}`, `unknown type "${m.type}" (value, lines)`);
+      if (m.type === "distribution") {
+        if (!isFn(m.range)) error(`metrics.${key}`, "needs range(state, params) returning [min, max]");
+        if (m.xLabel !== undefined && !isText(m.xLabel)) error(`metrics.${key}`, "xLabel needs German text");
+      }
+    } else if (m.type !== undefined && m.type !== "value") error(`metrics.${key}`, `unknown type "${m.type}" (value, lines, distribution)`);
     else if (!isFn(m.value)) error(`metrics.${key}`, "needs value(state, params)");
   }
   return ok;
@@ -240,6 +246,17 @@ function smokeTest(sim, label, values, makeState) {
 
 function checkMetrics(/** @type {any} */ sim, /** @type {any} */ state, /** @type {any} */ values, /** @type {string} */ where) {
   for (const [key, m] of Object.entries(sim.metrics ?? {})) {
+    if (m.type === "distribution") {
+      const [min, max] = m.range(state, values);
+      if (!(Number.isFinite(min) && Number.isFinite(max) && min < max)) error(where, `metric "${key}": range is [${min}, ${max}]`);
+      for (const [k, line] of Object.entries(m.lines)) {
+        const ys = line.values(state, values);
+        if (ys === null) continue;
+        if (typeof ys?.length !== "number" || ys.length === 0) error(where, `metric "${key}.${k}": values must be a non-empty array or null`);
+        else if (!Array.prototype.every.call(ys, Number.isFinite)) error(where, `metric "${key}.${k}" has non-finite values`);
+      }
+      continue;
+    }
     const fns = m.type === "lines" ? Object.entries(m.lines).map(([k, line]) => [`${key}.${k}`, line.value]) : [[key, m.value]];
     for (const [name, fn] of fns) {
       const v = fn(state, values);

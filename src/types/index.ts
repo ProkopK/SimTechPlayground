@@ -104,7 +104,34 @@ export interface LinesMetric<S = any> {
   digits?: number;
 }
 
-export type Metric<S = any> = ValueMetric<S> | LinesMetric<S>;
+/** One curve of a `DistributionMetric`. */
+export interface DistributionLine<S = any> {
+  label: Text;
+  /**
+   * The y values. Line: n points at evenly spaced x from min to max (both included).
+   * Bars: n bins that split [min, max] evenly. Must be cheap: fill a typed array kept on the
+   * state instead of allocating. Return `null` to hide the line.
+   */
+  values(state: S, params: Values): ArrayLike<number> | null;
+  /** "bars" for histograms (default "line"). */
+  style?: "line" | "bars";
+}
+
+/**
+ * A chart of the current state over some quantity other than time, e.g. a velocity histogram
+ * or a radial distribution function. Several lines share the axes (e.g. histogram + theory).
+ */
+export interface DistributionMetric<S = any> {
+  type: "distribution";
+  label: Text;
+  /** x axis range [min, max]. Called before the lines' `values`. */
+  range(state: S, params: Values): [number, number];
+  /** Name of the x axis, shown below the chart. */
+  xLabel?: Text;
+  lines: Record<string, DistributionLine<S>>;
+}
+
+export type Metric<S = any> = ValueMetric<S> | LinesMetric<S> | DistributionMetric<S>;
 
 /** Pointer (mouse, touch, pen) input, already converted to world coordinates (2D). */
 export interface PointerInfo {

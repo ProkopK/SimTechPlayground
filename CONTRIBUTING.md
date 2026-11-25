@@ -161,6 +161,21 @@ energy: {
 },
 ```
 
+Non-time-series metrics: To plot a quantity live over something other than time, use `type: "distribution"` (see below). Use `bars` for a histogram, or return evenly spaced y values for a line plot. Fill a typed array on the state instead of allocating a new one each call, keep `values` cheap.
+
+```js
+speeds: {
+  type: "distribution",
+  label: { de: "Geschwindigkeitsverteilung" },
+  xLabel: { de: "Geschwindigkeit" },
+  range: (s) => [0, s.vMax],
+  lines: {
+    measured: { label: { de: "Simulation" }, style: "bars", values: (s) => speedHistogram(s) },
+    theory: { label: { de: "Maxwell-Boltzmann" }, values: (s, p) => maxwellCurve(s, p) },
+  },
+},
+```
+
 To show the time axis it in a physical unit, set `timeUnit` on the simulation, e.g. `timeUnit: { unit: "fs", scale: 0.0242 }` for atomic units in femtoseconds. Otherwise, steps × `dt` is shown.
 
 ### Pointer input (mouse and touch)

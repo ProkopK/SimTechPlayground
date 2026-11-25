@@ -1,7 +1,8 @@
 /**
- * Shows a simulation's metrics below the controls. Two kinds (see src/types):
+ * Shows a simulation's metrics below the controls. Three kinds (see src/types):
  * - value: a number with a small time-series plot (sparkline)
  * - lines: several numbers plotted over time in one chart, with a legend
+ * - distribution: a chart over some other quantity than time (e.g. a histogram), redrawn live
  * Time plots show the last WINDOW_S seconds at speed ×1, measured in simulation time: a faster
  * speed scrolls faster but doesn't squeeze the curve. Points are stored at fixed simulation time
  * intervals; the line always ends at the current value, and the plots are redrawn every frame,
@@ -9,7 +10,7 @@
  */
 import { t, text, type Text } from "../i18n";
 import type { Runner } from "../runner/runner";
-import type { LinesMetric, ValueMetric } from "../types";
+import type { DistributionLine, DistributionMetric, LinesMetric, Metric, ValueMetric } from "../types";
 import { el } from "./dom";
 
 const WINDOW_S = 30; // time shown in a time plot, in real seconds at speed ×1
@@ -38,7 +39,7 @@ export function createMetrics(container: HTMLElement, runner: Runner) {
   // Simulation time shown at once, and between two stored points.
   const window = WINDOW_S * (runner.sim.stepsPerSecond ?? 60) * (runner.sim.dt ?? 1);
   const interval = window / SAMPLES;
-  const rows = entries.map(([, metric]) => timeRow(metric, runner, window));
+  const rows = entries.map(([, metric]) => createRow(metric, runner, window));
   const root = el("section", { class: "sim-metrics" }, heading, ...rows.map((r) => r.root));
   container.append(root);
 
@@ -89,6 +90,11 @@ export function createMetrics(container: HTMLElement, runner: Runner) {
   };
 }
 
+function createRow(metric: Metric, runner: Runner, window: number): Row {
+  if (metric.type === "distribution") return distributionRow(metric, runner);
+  return timeRow(metric, runner, window);
+}
+
 /** Call simulation code; an exception shows up as NaN ("–") instead of breaking the panel. */
 function safe<T>(fn: () => T, fallback: T): T {
   try {
@@ -115,12 +121,14 @@ function setLabel(node: HTMLElement, label: Text) {
 /** CSS variable holding the color of line k. */
 const lineColor = (k: number) => `--chart-${(k % LINE_COLORS) + 1}`;
 
-/** Legend: color swatch, label and current value of each line. */
-function createLegend(labels: Text[], outputs: HTMLElement[]) {
+/** Legend: color swatch, label and (optionally) the current value of each line. */
+function createLegend(labels: Text[], outputs?: HTMLElement[]) {
   const labelEls = labels.map(() => el("span", { class: "metric__label" }));
-  const items = labelEls.map((labelEl, k) =>
-    el("li", {}, el("span", { class: "metric__swatch", style: `background: var(${lineColor(k)})` }), labelEl, outputs[k]),
-  );
+  const items = labelEls.map((labelEl, k) => {
+    const item = el("li", {}, el("span", { class: "metric__swatch", style: `background: var(${lineColor(k)})` }), labelEl);
+    if (outputs) item.append(outputs[k]);
+    return item;
+  });
   return {
     list: el("ul", { class: "metric__legend" }, ...items),
     relabel: () => labelEls.forEach((labelEl, k) => setLabel(labelEl, labels[k])),
@@ -188,6 +196,32 @@ function timeRow(metric: ValueMetric | LinesMetric, runner: Runner, window: numb
   };
 }
 
+/** A chart over a quantity other than time. */
+function distributionRow(metric: DistributionMetric, runner: Runner): Row {
+  const label = el("span", { class: "metric__label" });
+  const lines = Object.values(metric.lines);
+  const canvas = el("canvas", { class: "metric__plot" });
+  // A single line needs no legend: the chart's label says what it is.
+  const legend = lines.length > 1 ? createLegend(lines.map((line) => line.label)) : undefined;
+  const root = el("div", { class: "metric metric--plot" }, label, canvas);
+  if (legend) root.append(legend.list);
+
+  return {
+    root,
+    relabel() {
+      setLabel(label, metric.label);
+      legend?.relabel();
+    },
+    display() {},
+    draw() {
+      const range = safe(() => metric.range(runner.state, runner.values), [NaN, NaN] as [number, number]);
+      const data = lines.map((line) => safe(() => line.values(runner.state, runner.values), null));
+      const xName = metric.xLabel === undefined ? "" : text(metric.xLabel);
+      drawDistribution(canvas, range, xName, data, lines);
+    },
+  };
+}
+
 /** Match the canvas' pixel size to its CSS size (sharp on HiDPI). Returns null if hidden. */
 function prepare(canvas: HTMLCanvasElement) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -204,10 +238,11 @@ function prepare(canvas: HTMLCanvasElement) {
 }
 
 /** Common y range of all data; null if there is no finite value. */
-function yRange(data: (number | null)[][]): [number, number] | null {
-  let min = Infinity;
-  let max = -Infinity;
+function yRange(data: (ArrayLike<number | null> | null)[], fromZero: boolean): [number, number] | null {
+  let min = fromZero ? 0 : Infinity;
+  let max = fromZero ? 0 : -Infinity;
   for (const values of data) {
+    if (!values) continue;
     for (let i = 0; i < values.length; i++) {
       const v = values[i];
       if (v === null || !Number.isFinite(v)) continue;
@@ -219,9 +254,12 @@ function yRange(data: (number | null)[][]): [number, number] | null {
   // Minimum span of 1% of the magnitude, so tiny numerical noise doesn't look like a big wave.
   const span = Math.max(1e-9, 0.01 * Math.max(Math.abs(min), Math.abs(max)));
   if (max - min < span) {
-    const mid = (min + max) / 2;
-    min = mid - span / 2;
-    max = mid + span / 2;
+    if (fromZero) max = min + span;
+    else {
+      const mid = (min + max) / 2;
+      min = mid - span / 2;
+      max = mid + span / 2;
+    }
   }
   return [min, max];
 }
@@ -334,7 +372,7 @@ function drawTimePlot(
   axis: { name: string; scale: number },
 ) {
   const c = prepare(canvas);
-  const range = c && yRange([...histories, current]);
+  const range = c && yRange([...histories, current], false);
   if (!c || !range) return;
   const { ctx, dpr, style } = c;
   const { toX: toAxisX, toY } = drawAxes(c, [t0 * axis.scale, t1 * axis.scale], range, axis.name);
@@ -353,6 +391,56 @@ function drawTimePlot(
     history.forEach((v, i) => point(times[i], v));
     if (times.length === 0 || now > times[times.length - 1]) point(now, current[k]);
     ctx.stroke();
+  });
+  ctx.restore();
+}
+
+function drawDistribution(
+  canvas: HTMLCanvasElement,
+  [x0, x1]: [number, number],
+  xName: string,
+  data: (ArrayLike<number> | null)[],
+  lines: DistributionLine[],
+) {
+  const c = prepare(canvas);
+  const range = c && Number.isFinite(x0) && Number.isFinite(x1) && x0 < x1 ? yRange(data, true) : null;
+  if (!c || !range) return;
+  const { ctx, dpr, style } = c;
+  const { toX, toY } = drawAxes(c, [x0, x1], range, xName);
+  const base = toY(Math.max(range[0], 0));
+  ctx.lineWidth = 1.5 * dpr;
+  data.forEach((values, k) => {
+    if (!values || values.length === 0) return;
+    const n = values.length;
+    const color = style.getPropertyValue(lineColor(k));
+    if (lines[k].style === "bars") {
+      // n bins splitting [x0, x1].
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.6;
+      const binWidth = (toX(x1) - toX(x0)) / n;
+      const gap = Math.min(dpr, binWidth / 4);
+      for (let i = 0; i < n; i++) {
+        const v = values[i];
+        if (!Number.isFinite(v)) continue;
+        const y = toY(v);
+        ctx.fillRect(toX(x0) + i * binWidth + gap / 2, Math.min(y, base), binWidth - gap, Math.abs(base - y));
+      }
+      ctx.globalAlpha = 1;
+    } else {
+      // n points evenly spaced from x0 to x1.
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i < n; i++) {
+        const v = values[i];
+        if (!Number.isFinite(v)) continue;
+        const x = toX(n > 1 ? x0 + (i / (n - 1)) * (x1 - x0) : (x0 + x1) / 2);
+        if (started) ctx.lineTo(x, toY(v));
+        else ctx.moveTo(x, toY(v));
+        started = true;
+      }
+      ctx.stroke();
+    }
   });
   ctx.restore();
 }

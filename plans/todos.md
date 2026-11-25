@@ -36,8 +36,6 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 ## Metrics, charts and input parameters
 
-- **Charts and histograms**: support for distribution plots (e.g. the velocity distribution or radial distribution function for Lennard-Jones); scalar metrics only cover sparklines.
-
 - **2D sliders**: support for 2D sliders (e.g. ising model like https://www.youtube.com/watch?v=itRV2jEtV8Q)
 
 - **Constant slider length**: the slider length depends on the length of the label
