@@ -16,7 +16,10 @@
 import { createRng, cssColor, plasma } from "../../src/lib";
 
 const MAX_PARTICLES = 300;
-const EXTERNAL_FORCE = 50; // strength of the external force applied by mouse/touch
+const EXTERNAL_FORCE = 10; // strength of the external force applied by mouse/touch
+const COLLISION_DISTANCE = 1.2; // max collision distance in units of sigma for Lowe-Andersen thermostat
+
+const COLOR_SPEED_CAP = 6; // speed at which the color scale is capped (in world units per second)
 
 /**
  * Everything that changes over time lives in the state.
@@ -58,7 +61,7 @@ export default {
             label: { de: "Anzahl Teilchen", en: "Number of particles" },
         },
         temperature: {
-            type: "range", min: 0, max: 10, step: 0.1, value: 5,
+            type: "range", min: 0, max: 10, step: 0.1, value: 1.8,
             label: { de: "Zieltemperatur", en: "Target temperature" },
         },
         sigma: {
@@ -70,11 +73,11 @@ export default {
             label: { de: "ε (Interaktionsstärke)", en: "ε (interaction strength)" },
         },
         gamma: {
-            type: "range", min: 0, max: 5, step: 0.01, value: 1,
+            type: "range", min: 0, max: 10, step: 0.01, value: 1,
             label: { de: "γ (Stärke des Thermostats)", en: "γ (thermostat strength)" },
         },
         colorBySpeed: {
-            type: "boolean", value: false,
+            type: "boolean", value: true,
             label: { de: "Teilchen nach Geschwindigkeit einfärben", en: "Color particles by speed" },
         },
         attract: {
@@ -157,41 +160,58 @@ export default {
         s.sigma = params.sigma; // update particle size in case it changed
         s.colorBySpeed = params.colorBySpeed; // update colorBySpeed setting in case it changed
 
-        for (let i = 0; i < 100 && s.n < params.n_particles; i++) {
+        for (let i = 0; i < 100 && s.n < params.n_particles; i++) {     // don't deadlock if particles don't fit
             addParticle(s, params.temperature, params.gamma, 0);
         }
         while (s.n > params.n_particles) removeParticle(s);
 
-        let c = Math.exp(-params.gamma * dt); // damping factor for Langevin thermostat
-
-        for (let i = 0; i < s.n; i++) {
-            // Update velocities with half step
-            s.vx[i] += 0.5 * dt * s.fx_lj[i];
-            s.vy[i] += 0.5 * dt * s.fy_lj[i];
-        }
+        // velocity Verlet integration
         for (let i = 0; i < s.n; i++) {
             // Update positions
-            s.x[i] += 0.5 * dt * s.vx[i];
-            s.y[i] += 0.5 * dt * s.vy[i];
+            s.x[i] += s.vx[i] * dt + 0.5 * s.fx_lj[i] * dt * dt;
+            s.y[i] += s.vy[i] * dt + 0.5 * s.fy_lj[i] * dt * dt;
+
+            // Update velocities (half step)
+            s.vx[i] += 0.5 * s.fx_lj[i] * dt;
+            s.vy[i] += 0.5 * s.fy_lj[i] * dt;
         }
-        handleBCs(s, params); // handle boundary conditions (walls)
-        for (let i = 0; i < s.n; i++) {
-            // Noise term (Langevin thermostat)
-            s.vx[i] = c * s.vx[i] + Math.sqrt((1 - c ** 2) * params.temperature) * s.rng.normal();
-            s.vy[i] = c * s.vy[i] + Math.sqrt((1 - c ** 2) * params.temperature) * s.rng.normal();
-        }
-        for (let i = 0; i < s.n; i++) {
-            s.x[i] += 0.5 * dt * s.vx[i];
-            s.y[i] += 0.5 * dt * s.vy[i];
-        }
-        handleBCs(s, params); // handle boundary conditions (walls)
+
+        handleBCs(s, params);
         computeLJForces(s, params.epsilon, params.sigma);
         addExternalForces(s);
+
         for (let i = 0; i < s.n; i++) {
-            // Update velocities with another half step
-            s.vx[i] += 0.5 * dt * s.fx_lj[i];
-            s.vy[i] += 0.5 * dt * s.fy_lj[i];
+            // Update velocities (second half step)
+            s.vx[i] += 0.5 * s.fx_lj[i] * dt;
+            s.vy[i] += 0.5 * s.fy_lj[i] * dt;
         }
+
+        let stddev = Math.sqrt(2 * params.temperature);
+        // Apply Lowe-Andersen thermostat
+        let P = 1 - Math.exp(-params.gamma * dt);
+        for (let i = 0; i < s.n; i++) {
+            for (let j = i+1; j < s.n; j++) {
+                let dx = s.x[j] - s.x[i];
+                let dy = s.y[j] - s.y[i];
+                let r2 = dx * dx + dy * dy;
+                let r = Math.sqrt(r2);
+                if (r < COLLISION_DISTANCE * params.sigma) {
+                    if (s.rng.next() < P) {
+                        let u = ((s.vx[i] - s.vx[j]) * dx + (s.vy[i] - s.vy[j]) * dy) / r;
+                        let xi = s.rng.normal() * stddev;
+
+                        let delta_u = xi - u;
+
+                        s.vx[i] += 0.5 * (delta_u * dx) / r;
+                        s.vy[i] += 0.5 * (delta_u * dy) / r;
+                        s.vx[j] -= 0.5 * (delta_u * dx) / r;
+                        s.vy[j] -= 0.5 * (delta_u * dy) / r;
+                    }
+                }
+            }
+        }
+        computeLJForces(s, params.epsilon, params.sigma);
+        addExternalForces(s);
 
         // Update past temperatures for averaging
         let sum = 0;
@@ -239,7 +259,7 @@ export default {
         for (let i = 0; i < s.n; i++) {
             const speed = Math.sqrt(s.vx[i] * s.vx[i] + s.vy[i] * s.vy[i]);
             if (s.colorBySpeed) {
-                ctx.fillStyle = cssColor(plasma, Math.min(speed, 8) / 8);
+                ctx.fillStyle = cssColor(plasma, Math.min(speed, COLOR_SPEED_CAP) / COLOR_SPEED_CAP);
             }
             else {
                 ctx.fillStyle = cssColor(plasma, 0.8);
