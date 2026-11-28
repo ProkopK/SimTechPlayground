@@ -71,8 +71,12 @@ export interface Preset<S = any> {
   state?(params: Values): S;
 }
 
-/** A number shown below the simulation, optionally with a small time-series plot. */
-export interface Metric<S = any> {
+/**
+ * A number shown below the simulation, optionally with a small time-series plot.
+ * In all metric labels (also of lines), "E_kin" or "E_{kin}" shows "kin" as a subscript.
+ */
+export interface ValueMetric<S = any> {
+  type?: "value";
   label: Text;
   /**
    * Must be cheap. Compute expensive values in `step()` and store them on the state.
@@ -81,9 +85,57 @@ export interface Metric<S = any> {
   value(state: S, params: Values): number | null;
   /** Show a sparkline (default true). */
   plot?: boolean;
-  /** Decimal places shown (default 3). */
+  /** Decimal places shown (default 3; with yScale "log": of the mantissa, e.g. 3.21 · 10⁻⁵). */
   digits?: number;
+  /** "log" for values spanning many powers of ten (axis 10⁻⁴, 10⁻³ …). Values ≤ 0 aren't plotted. */
+  yScale?: "linear" | "log";
 }
+
+/** One line of a `LinesMetric`. `value` follows the same rules as `ValueMetric.value`. */
+export interface MetricLine<S = any> {
+  label: Text;
+  value(state: S, params: Values): number | null;
+}
+
+/** Several numbers plotted over time in one chart, e.g. kinetic, potential and total energy. */
+export interface LinesMetric<S = any> {
+  type: "lines";
+  label: Text;
+  lines: Record<string, MetricLine<S>>;
+  /** Decimal places shown (default 3; with yScale "log": of the mantissa). */
+  digits?: number;
+  /** "log" for values spanning many powers of ten. Values ≤ 0 aren't plotted. */
+  yScale?: "linear" | "log";
+}
+
+/** One curve of a `DistributionMetric`. */
+export interface DistributionLine<S = any> {
+  label: Text;
+  /**
+   * The y values. Line: n points at evenly spaced x from min to max (both included).
+   * Bars: n bins that split [min, max] evenly. Must be cheap: fill a typed array kept on the
+   * state instead of allocating. Return `null` to hide the line.
+   */
+  values(state: S, params: Values): ArrayLike<number> | null;
+  /** "bars" for histograms (default "line"). */
+  style?: "line" | "bars";
+}
+
+/**
+ * A chart of the current state over some quantity other than time, e.g. a velocity histogram
+ * or a radial distribution function. Several lines share the axes (e.g. histogram + theory).
+ */
+export interface DistributionMetric<S = any> {
+  type: "distribution";
+  label: Text;
+  /** x axis range [min, max]. Called before the lines' `values`. */
+  range(state: S, params: Values): [number, number];
+  /** Name of the x axis, shown below the chart. */
+  xLabel?: Text;
+  lines: Record<string, DistributionLine<S>>;
+}
+
+export type Metric<S = any> = ValueMetric<S> | LinesMetric<S> | DistributionMetric<S>;
 
 /** Pointer (mouse, touch, pen) input, already converted to world coordinates (2D). */
 export interface PointerInfo {
@@ -126,6 +178,11 @@ interface SimulationBase<S> {
   maxSpeed?: number;
   /** Safety cap of steps per rendered frame; surplus steps are dropped on slow devices. */
   maxStepsPerFrame?: number;
+  /**
+   * Time axis of the charts: simulation time × `scale` in `unit`, e.g. { unit: "fs", scale: 0.0242 }
+   * for atomic units shown in femtoseconds. Default: plain simulation time t.
+   */
+  timeUnit?: { unit: string; scale?: number };
 
   /** Create the initial state. */
   init(params: Values): S;

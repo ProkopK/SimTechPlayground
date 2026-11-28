@@ -136,7 +136,7 @@ presets: {
 
 ### Metrics
 
-Numbers shown below the controls, with a small plot over the last 30 seconds:
+Numbers shown below the controls, with a small plot over time (the last 30 seconds at speed ×1):
 
 ```js
 metrics: {
@@ -145,7 +145,40 @@ metrics: {
 },
 ```
 
-`value` is called ten times per second and must be cheap. Compute expensive quantities in `step` and store them on the state. Return `null` when a value doesn't apply in the current setup; it is shown as "–".
+`value` is called often and must be cheap (called every frame, plus ten plot points per simulated second at speed ×1). Compute expensive quantities in `step` and store them on the state. Return `null` when a value doesn't apply in the current setup; it is shown as "–".
+
+For logarithmic y axes, set `yScale: "log"` (see the distance in [simulations/lorenz/sim.js](simulations/lorenz/sim.js)).
+
+Several numbers in one chart (e.g. energy components), each line in its own color:
+
+```js
+energy: {
+  type: "lines",
+  label: { de: "Energie" },
+  lines: {
+    kinetic: { label: "E_kin", value: (s) => s.kinetic },
+    potential: { label: "E_pot", value: (s) => s.potential },
+  },
+  digits: 1,
+},
+```
+
+Non-time-series metrics: To plot a quantity live over something other than time, use `type: "distribution"` (see below). Use `bars` for a histogram, or return evenly spaced y values for a line plot. Fill a typed array on the state instead of allocating a new one each call, keep `values` cheap.
+
+```js
+speeds: {
+  type: "distribution",
+  label: { de: "Geschwindigkeitsverteilung" },
+  xLabel: { de: "Geschwindigkeit" },
+  range: (s) => [0, s.vMax],
+  lines: {
+    measured: { label: { de: "Simulation" }, style: "bars", values: (s) => speedHistogram(s) },
+    theory: { label: { de: "Maxwell-Boltzmann" }, values: (s, p) => maxwellCurve(s, p) },
+  },
+},
+```
+
+To show the time axis it in a physical unit, set `timeUnit` on the simulation, e.g. `timeUnit: { unit: "fs", scale: 0.0242 }` for atomic units in femtoseconds. Otherwise, steps × `dt` is shown.
 
 ### Pointer input (mouse and touch)
 

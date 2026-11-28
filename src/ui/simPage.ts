@@ -1,5 +1,5 @@
 import { getLang, onLangChange, t, text } from "../i18n";
-import { getSimulation, simulations } from "../registry";
+import { getSimulation, resolveInfoUrl, simulations } from "../registry";
 import { createCanvas2D, downloadThumbnail } from "../runner/canvas2d";
 import { attachPointer } from "../runner/pointer";
 import { createRunner, type Runner, type SimView } from "../runner/runner";
@@ -29,7 +29,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   const title = el("h1", { class: "sim-title" });
   const stage = el("div", { class: "sim-stage" }, el("p", { class: "message" }, t("sim.loading")));
   const controlsSlot = el("div");
-  const metricsSlot = el("div");
+  const metricsSlot = el("div", { class: "sim-metrics-slot" });
   const side = el("aside", { class: "sim-side" }, title, controlsSlot, metricsSlot);
   const top = el("div", { class: "sim-top" }, stage, side);
   // Below the fold: explanation and related simulations. The heading is static so it
@@ -53,10 +53,11 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   function renderTexts() {
     topbarSlot.replaceChildren(createTopbar(back()));
     footerSlot.replaceChildren(createFooter(id));
-    title.textContent = text(entry!.meta.title);
+    // Only the short name before the colon, so the title fits on one line.
+    title.textContent = text(entry!.meta.title).split(":")[0];
     document.title = `${text(entry!.meta.title)} · ${t("site.title")}`;
     controls?.dispose();
-    if (runner) controls = createControls(controlsSlot, runner, [fullscreen.button()]);
+    if (runner) controls = createControls(controlsSlot, stage, runner, [fullscreen.button()]);
     metrics?.relabel();
     infoHeading.textContent = t("sim.explanation");
     renderInfo();
@@ -75,7 +76,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   async function renderInfo() {
     const request = ++infoRequest; // ignore results of outdated requests (fast language switching)
     try {
-      const html = await renderMarkdown(await entry!.loadInfo(getLang()));
+      const html = await renderMarkdown(await entry!.loadInfo(getLang()), (href) => resolveInfoUrl(id, href));
       if (request !== infoRequest || disposed) return;
       infoBody.innerHTML = html;
     } catch (error) {

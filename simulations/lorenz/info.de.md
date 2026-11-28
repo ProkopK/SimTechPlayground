@@ -29,7 +29,7 @@ $$
 \Delta(t) \approx \Delta_0 \, e^{\lambda t} .
 $$
 
-Deshalb steigt der Messwert (der Logarithmus des Abstands) zunächst ungefähr gleichmäßig an. Lorenz bemerkte das, als er eine Rechnung mit leicht gerundeten Startwerten wiederholte und ein völlig anderes Ergebnis erhielt. Daher kommt der Begriff **Schmetterlingseffekt**: Kann der Flügelschlag eines Schmetterlings in Brasilien einen Tornado in Texas auslösen?
+Deshalb steigt die Kurve im Messwert-Diagramm zunächst ungefähr geradlinig an. Die senkrechte Achse ist **logarithmisch**: Jede Linie nach oben bedeutet zehnmal so viel Abstand. Eine Gerade heißt also, dass der Abstand in gleichen Zeiten immer um denselben Faktor wächst. Lorenz bemerkte das, als er eine Rechnung mit leicht gerundeten Startwerten wiederholte und ein völlig anderes Ergebnis erhielt. Daher kommt der Begriff **Schmetterlingseffekt**: Kann der Flügelschlag eines Schmetterlings in Brasilien einen Tornado in Texas auslösen?
 
 ## Und im Studium?
 

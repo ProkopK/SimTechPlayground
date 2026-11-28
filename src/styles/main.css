@@ -13,6 +13,11 @@
   --color-border: #d3d9e3;
   --color-error: #b42318;
   --color-canvas-bg: #0d1117;
+  /* Line colors in metric charts (first = accent). */
+  --chart-1: var(--color-accent);
+  --chart-2: #d9480f;
+  --chart-3: #2b8a3e;
+  --chart-4: #9c36b5;
 
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -48,6 +53,9 @@
     --color-accent-contrast: #0b1220;
     --color-border: #2f3947;
     --color-error: #f87171;
+    --chart-2: #ff922b;
+    --chart-3: #51cf66;
+    --chart-4: #da77f2;
     --shadow: 0 1px 3px rgb(0 0 0 / 0.4), 0 4px 16px rgb(0 0 0 / 0.3);
     color-scheme: dark;
   }
@@ -63,6 +71,9 @@
   --color-accent-contrast: #0b1220;
   --color-border: #2f3947;
   --color-error: #f87171;
+  --chart-2: #ff922b;
+  --chart-3: #51cf66;
+  --chart-4: #da77f2;
   --shadow: 0 1px 3px rgb(0 0 0 / 0.4), 0 4px 16px rgb(0 0 0 / 0.3);
   color-scheme: dark;
 }
@@ -333,15 +344,25 @@ button {
 }
 
 .sim-side {
+  /* Column layout: the metric charts share the height left below the controls. */
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   padding: var(--space-3);
   background: var(--color-surface);
   border-left: 1px solid var(--color-border);
 }
 
+.sim-side > * {
+  flex-shrink: 0;
+}
+
 .sim-title {
   font-size: 1.4rem;
   margin: 0 0 var(--space-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sim-crash {
@@ -395,11 +416,31 @@ button {
   }
 }
 
+/* Pause, reset and fullscreen as small icon buttons in the bottom corner of the simulation. */
 .sim-toolbar {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  z-index: 2; /* above the crash overlay, so reset stays reachable */
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  gap: var(--space-1);
+}
+
+.btn--icon {
+  justify-content: center;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+@media (pointer: coarse) {
+  .btn--icon {
+    width: 40px;
+    min-height: 40px;
+  }
 }
 
 .sim-controls .lil-gui.lil-root {
@@ -426,6 +467,14 @@ button {
   color: var(--color-text-muted);
 }
 
+.sim-info img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: var(--space-3) auto;
+  border-radius: 8px;
+}
+
 .sim-related {
   margin-top: var(--space-5);
 }
@@ -446,6 +495,32 @@ button {
 }
 
 /* ---------- Metrics ---------- */
+/*
+ * Charts (.metric--plot) grow to fill the free height of the side panel, but never get
+ * smaller than --plot-min-height; if there isn't enough room, the panel scrolls. A chart
+ * (with its label and legend) is at most --metric-max-height high; the rest stays empty.
+ */
+.sim-metrics-slot {
+  flex: 1 0 0;
+  display: flex;
+  flex-direction: column;
+  --plot-min-height: 60px;
+  --metric-max-height: 260px;
+}
+
+/* Phones and narrow windows: the panel scrolls with the page, so give charts a fixed size. */
+@media (max-width: 900px) {
+  .sim-metrics-slot {
+    --plot-min-height: 120px;
+  }
+}
+
+.sim-metrics {
+  flex: 1 0 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .sim-metrics h2 {
   font-size: 1.15rem;
   margin: var(--space-4) 0 var(--space-2);
@@ -459,6 +534,12 @@ button {
   margin-bottom: var(--space-2);
 }
 
+.metric--plot {
+  flex: 1 1 0;
+  max-height: var(--metric-max-height);
+  grid-template-rows: auto minmax(var(--plot-min-height), 1fr) auto;
+}
+
 .metric__label {
   font-size: var(--font-size-small);
   color: var(--color-text-muted);
@@ -469,11 +550,35 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+.metric__legend {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-small);
+}
+
+.metric__legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.metric__swatch {
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+}
+
 .metric__plot {
   grid-column: 1 / -1;
   width: 100%;
-  height: 36px;
-  color: var(--color-accent);
+  /* The row sets the height; the canvas' pixel size must not feed back into the layout. */
+  height: 0;
+  min-height: 100%;
   background: var(--color-surface-2);
   border-radius: 6px;
 }
@@ -501,7 +606,7 @@ button {
   top: var(--space-3);
   right: var(--space-3);
   width: min(340px, calc(100% - 2 * var(--space-3)));
-  max-height: calc(100% - 2 * var(--space-3));
+  max-height: calc(100% - 2 * var(--space-3) - 48px); /* leaves room for the toolbar below */
   padding: var(--space-2);
   border: none;
   border-radius: var(--radius);
@@ -511,10 +616,6 @@ button {
 
 .is-fullscreen .sim-title {
   display: none;
-}
-
-.is-fullscreen .sim-toolbar {
-  margin-bottom: var(--space-2);
 }
 
 .is-fullscreen .sim-metrics h2 {
@@ -530,5 +631,11 @@ button {
     left: var(--space-2);
     width: auto;
     max-height: 45%;
+  }
+
+  /* The controls cover the bottom here, so the buttons move to the top corner. */
+  .is-fullscreen .sim-toolbar {
+    top: var(--space-2);
+    bottom: auto;
   }
 }

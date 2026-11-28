@@ -6,7 +6,7 @@
  * alone still maximizes the simulation within the browser window.
  */
 import { t } from "../i18n";
-import { el } from "./dom";
+import { iconButton, setIcon } from "./controls";
 
 const CLASS = "is-fullscreen";
 
@@ -14,7 +14,7 @@ export function createFullscreen(target: HTMLElement) {
   let button: HTMLButtonElement | undefined;
   const isOn = () => target.classList.contains(CLASS);
   const updateButton = () => {
-    if (button) button.textContent = isOn() ? `✕ ${t("sim.exitFullscreen")}` : `⛶ ${t("sim.fullscreen")}`;
+    if (button) setIcon(button, isOn() ? "✕" : "⛶", t(isOn() ? "sim.exitFullscreen" : "sim.fullscreen"));
   };
 
   function set(on: boolean) {
@@ -41,7 +41,7 @@ export function createFullscreen(target: HTMLElement) {
   return {
     /** A (new) toggle button, e.g. after the controls were rebuilt for another language. */
     button(): HTMLButtonElement {
-      button = el("button", { class: "btn" });
+      button = iconButton("⛶", t("sim.fullscreen"));
       button.addEventListener("click", () => set(!isOn()));
       updateButton();
       return button;
