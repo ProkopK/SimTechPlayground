@@ -82,49 +82,69 @@ export default {
         },
         attract: {
             type: "boolean", value: true,
-            label: { de: "Mauszeiger zieht Teilchen an", en: "Cursor attracts" },
+            label: { de: "Mauszeiger zieht Teilchen an", en: "Cursor attracts particles" },
         },
     },
 
     // Numbers shown below the simulation (with a small plot over time).
     metrics: {
         measured_temp: {
-            label: { de: "Gemessene Temperatur (instantan)", en: "Measured temperature (instantaneous)" },
-            value: (s) => {
-                return s.past_temps.length > 0 ? s.past_temps[0] : 0;
-            },
-            digits: 3,
-        },
-        measured_temp_avg: {
-            label: { de: "Gemessene Temperatur (über die letzten drei Sekunden gemittelt)", en: "Measured temperature (time-averaged over the last three seconds)" },
-            value: (s) => {
-                // Calculate the time-averaged temperature
-                let sum = 0;
-                for (let i = 0; i < s.past_temps.length; i++) {
-                    sum += s.past_temps[i];
-                }
-                return s.past_temps.length > 0 ? sum / s.past_temps.length : 0;
+            type: "lines",
+            label: { de: "Gemessene Temperatur", en: "Measured temperature" },
+            lines: {
+                instantaneous: {
+                    label: { de: "instantan", en: "instantaneous" },
+                    value: (s) => {
+                        return s.past_temps.length > 0 ? s.past_temps[0] : 0;
+                    },
+                },
+                average: {
+                    label: { de: "gemittelt über 3s", en: "averaged over 3s" },
+                    value: (s) => {
+                        // Calculate the time-averaged temperature
+                        let sum = 0;
+                        for (let i = 0; i < s.past_temps.length; i++) {
+                            sum += s.past_temps[i];
+                        }
+                        return s.past_temps.length > 0 ? sum / s.past_temps.length : 0;
+                    },
+                },
             },
             digits: 3,
         },
         pressure: {
+            type: "lines",
             label: { de: "Gemessener Druck", en: "Measured pressure" },
-            value: (s) => {
-                return s.past_pressures.length > 0 ? s.past_pressures[0] : 0;
+            lines: {
+                instantaneous: {
+                    label: { de: "instantan", en: "instantaneous" },
+                    value: (s) => {
+                        return s.past_pressures.length > 0 ? s.past_pressures[0] : 0;
+                    },
+                },
+                average: {
+                    label: { de: "gemittelt über 3s", en: "averaged over 3s" },
+                    value: (s) => {
+                        // Calculate the time-averaged pressure
+                        let sum = 0;
+                        for (let i = 0; i < s.past_pressures.length; i++) {
+                            sum += s.past_pressures[i];
+                        }
+                        return s.past_pressures.length > 0 ? sum / s.past_pressures.length : 0;
+                    },
+                },
             },
             digits: 3,
         },
-        pressure_avg: {
-            label: { de: "Gemessener Druck (über die letzten drei Sekunden gemittelt)", en: "Measured pressure (time-averaged over the last three seconds)" },
-            value: (s) => {
-                // Calculate the time-averaged pressure
-                let sum = 0;
-                for (let i = 0; i < s.past_pressures.length; i++) {
-                    sum += s.past_pressures[i];
-                }
-                return s.past_pressures.length > 0 ? sum / s.past_pressures.length : 0;
+        boltzmann_dist: {
+            type: "distribution",
+            label: { de: "Geschwindigkeitsverteilung", en: "Speed distribution" },
+            xLabel: { de: "Geschwindigkeit", en: "Speed" },
+            range: (s) => [0, 2 * COLOR_SPEED_CAP],
+            lines: {
+                measured: { label: { de: "Simulation" }, style: "bars", values: (s) => speedHistogram(s) },
+                theory: { label: { de: "Maxwell-Boltzmann" }, values: (s, p) => maxwellCurve(s, p) },
             },
-            digits: 3,
         },
     },
 
@@ -190,7 +210,7 @@ export default {
         // Apply Lowe-Andersen thermostat
         let P = 1 - Math.exp(-params.gamma * dt);
         for (let i = 0; i < s.n; i++) {
-            for (let j = i+1; j < s.n; j++) {
+            for (let j = i + 1; j < s.n; j++) {
                 let dx = s.x[j] - s.x[i];
                 let dy = s.y[j] - s.y[i];
                 let r2 = dx * dx + dy * dy;
@@ -368,4 +388,35 @@ function handleBCs(/** @type {State} */ s, /** @type {any} */ params) {
         if (s.y[i] < s.sigma / 2) { s.y[i] = s.sigma / 2; s.vy[i] *= -1; }
         if (s.y[i] > 100 - s.sigma / 2) { s.y[i] = 100 - s.sigma / 2; s.vy[i] *= -1; }
     }
+}
+
+function speedHistogram(/** @type {State} */ s) {
+    const numBins = 20;
+    const histogram = new Array(numBins).fill(0);
+    const binWidth = 2 * COLOR_SPEED_CAP / numBins;
+
+    for (let i = 0; i < s.n; i++) {
+        const speed = Math.sqrt(s.vx[i] * s.vx[i] + s.vy[i] * s.vy[i]);
+        const binIndex = Math.floor(speed / binWidth);
+        if (binIndex < numBins) histogram[binIndex]++;
+    }
+    for (let i = 0; i < numBins; i++) {
+        histogram[i] /= s.n * binWidth; // convert counts to probability density
+    }
+    return histogram;
+}
+
+function maxwellCurve(/** @type {State} */ s, /** @type {any} */ params) {
+    const numPoints = 100;
+    const curve = new Float64Array(numPoints);
+    const T = params.temperature;
+    const factor = Math.sqrt(2 / (Math.PI * T ** 3));
+
+    for (let i = 0; i < numPoints; i++) {
+        const speed = (i / (numPoints - 1)) * 2 * COLOR_SPEED_CAP;
+        const probabilityDensity = factor * speed ** 2 * Math.exp(-(speed ** 2) / (2 * T));
+        curve[i] = probabilityDensity;
+    }
+
+    return curve;
 }
