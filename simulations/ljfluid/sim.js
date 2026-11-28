@@ -16,6 +16,7 @@
 import { createRng, cssColor, plasma } from "../../src/lib";
 
 const MAX_PARTICLES = 300;
+const EXTERNAL_FORCE = 50; // strength of the external force applied by mouse/touch
 
 /**
  * Everything that changes over time lives in the state.
@@ -34,7 +35,6 @@ const MAX_PARTICLES = 300;
  * @property {{ x: number, y: number }} external_pos  position of the external force
  * @property {import("../../src/lib").Rng} rng
  * @property {number} sigma  particle size (world units); need this to draw the balls
- * @property {boolean} walls  whether to have walls at the edges of the simulation
  * @property {boolean} colorBySpeed  whether to color the particles by speed or not
  * @property {Float64Array} past_temps  past measured temperatures for averaging
  * @property {Float64Array} past_pressures  past measured pressures for averaging
@@ -58,36 +58,28 @@ export default {
             label: { de: "Anzahl Teilchen", en: "Number of particles" },
         },
         temperature: {
-            type: "range", min: 0, max: 20, step: 0.1, value: 5,
+            type: "range", min: 0, max: 10, step: 0.1, value: 5,
             label: { de: "Zieltemperatur", en: "Target temperature" },
         },
         sigma: {
-            type: "range", min: 1, max: 5, step: 0.1, value: 3,
+            type: "range", min: 0.5, max: 4, step: 0.1, value: 3,
             label: { de: "σ (Teilchengröße)", en: "σ (particle size)" },
         },
         epsilon: {
-            type: "range", min: 0.1, max: 5, step: 0.01, value: 1,
+            type: "range", min: 0.1, max: 3, step: 0.01, value: 1,
             label: { de: "ε (Interaktionsstärke)", en: "ε (interaction strength)" },
         },
         gamma: {
             type: "range", min: 0, max: 5, step: 0.01, value: 1,
             label: { de: "γ (Stärke des Thermostats)", en: "γ (thermostat strength)" },
         },
-        walls: {
-            type: "boolean", value: true,
-            label: { de: "Wände am Rand der Simulation", en: "Walls at the edges of the simulation" },
-        },
         colorBySpeed: {
             type: "boolean", value: false,
             label: { de: "Teilchen nach Geschwindigkeit einfärben", en: "Color particles by speed" },
         },
-        externalForce: {
-            type: "range", min: 0, max: 100, step: 1, value: 50,
-            label: { de: "Stärke der externen Kraft", en: "Strength of external force" },
-        },
         attract: {
             type: "boolean", value: true,
-            label: { de: "Anziehen statt Abstoßen", en: "Attract instead of repel" },
+            label: { de: "Mauszeiger zieht Teilchen an", en: "Cursor attracts" },
         },
     },
 
@@ -151,7 +143,6 @@ export default {
             external_pos: { x: 0, y: 0 },
             rng,
             sigma: params.sigma,
-            walls: params.walls,
             colorBySpeed: params.colorBySpeed, // whether to color the particles by speed or not
             past_temps: new Float64Array(180), // store the last 180 measured temperatures
             past_pressures: new Float64Array(180), // store the last 180 measured pressures
@@ -164,7 +155,6 @@ export default {
 
     step(s, params, dt) {
         s.sigma = params.sigma; // update particle size in case it changed
-        s.walls = params.walls; // update walls setting in case it changed
         s.colorBySpeed = params.colorBySpeed; // update colorBySpeed setting in case it changed
 
         for (let i = 0; i < 100 && s.n < params.n_particles; i++) {
@@ -184,7 +174,7 @@ export default {
             s.x[i] += 0.5 * dt * s.vx[i];
             s.y[i] += 0.5 * dt * s.vy[i];
         }
-        handleBCs(s, params); // handle boundary conditions (walls or periodic)
+        handleBCs(s, params); // handle boundary conditions (walls)
         for (let i = 0; i < s.n; i++) {
             // Noise term (Langevin thermostat)
             s.vx[i] = c * s.vx[i] + Math.sqrt((1 - c ** 2) * params.temperature) * s.rng.normal();
@@ -194,7 +184,7 @@ export default {
             s.x[i] += 0.5 * dt * s.vx[i];
             s.y[i] += 0.5 * dt * s.vy[i];
         }
-        handleBCs(s, params); // handle boundary conditions (walls or periodic)
+        handleBCs(s, params); // handle boundary conditions (walls)
         computeLJForces(s, params.epsilon, params.sigma);
         addExternalForces(s);
         for (let i = 0; i < s.n; i++) {
@@ -239,8 +229,8 @@ export default {
 
         // Left button / finger attracts (or repulses if the toggle is on), right button paints down.
         s.external_active = true;
-        s.external_mult = params.attract ? params.externalForce : -params.externalForce;
-        if (e.buttons & 2) s.external_mult = -params.externalForce;
+        s.external_mult = params.attract ? EXTERNAL_FORCE : -EXTERNAL_FORCE;
+        if (e.buttons & 2) s.external_mult = -EXTERNAL_FORCE;
         // Paint along the line from the previous position, so fast strokes leave no gaps.
         s.external_pos = { x: e.x, y: e.y };
     },
@@ -259,59 +249,10 @@ export default {
             ctx.fill();
         }
 
-        // Draw periodic images if necessary
-        if (!s.walls) {
-            for (let i = 0; i < s.n; i++) {
-                const speed = Math.sqrt(s.vx[i] * s.vx[i] + s.vy[i] * s.vy[i]);
-                if (s.colorBySpeed) {
-                    ctx.fillStyle = cssColor(plasma, Math.min(speed, 8) / 8);
-                }
-                else {
-                    ctx.fillStyle = cssColor(plasma, 0.8);
-                }
-                if (s.x[i] < s.sigma / 2) {
-                    ctx.beginPath();
-                    ctx.arc(s.x[i] + 101, s.y[i] + 1, s.sigma / 2, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-                if (s.x[i] > 100 - s.sigma / 2) {
-                    ctx.beginPath();
-                    ctx.arc(s.x[i] - 99, s.y[i] + 1, s.sigma / 2, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-                if (s.y[i] < s.sigma / 2) {
-                    ctx.beginPath();
-                    ctx.arc(s.x[i] + 1, s.y[i] + 101, s.sigma / 2, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-                if (s.y[i] > 100 - s.sigma / 2) {
-                    ctx.beginPath();
-                    ctx.arc(s.x[i] + 1, s.y[i] - 99, s.sigma / 2, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-            }
-        }
-
-        // Draw walls if enabled (on outside of the simulation area)
-        if (s.walls) {
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(0, 0, 102, 102);
-        }
-        else {
-            const canvasBg = getComputedStyle(ctx.canvas)
-                .getPropertyValue("--color-canvas-bg")
-                .trim();
-            ctx.strokeStyle = canvasBg;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(0, 0, 102, 102);
-
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = 2;
-            ctx.setLineDash([4, 4]);
-            ctx.strokeRect(0, 0, 102, 102);
-            ctx.setLineDash([]);
-        }
+        // Draw walls
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, 102, 102);
     },
 };
 
@@ -365,14 +306,6 @@ function computeLJForces(/** @type {State} */ s, /** @type {number} */ epsilon, 
             let dx = s.x[j] - s.x[i];
             let dy = s.y[j] - s.y[i];
 
-            // The simulation has periodic boundaries, so use the shortest
-            // displacement between each pair.
-            if (!s.walls) {
-                if (dx > 50) dx -= 100;
-                else if (dx < -50) dx += 100;
-                if (dy > 50) dy -= 100;
-                else if (dy < -50) dy += 100;
-            }
             let r2 = dx * dx + dy * dy;
             if (r2 < 1e-12) continue;
             let r6 = r2 * r2 * r2;
@@ -397,14 +330,6 @@ function addExternalForces(/** @type {State} */ s) {
         let dx = s.x[i] - s.external_pos.x;
         let dy = s.y[i] - s.external_pos.y;
 
-        // The simulation has periodic boundaries, so use the shortest
-        // displacement between each pair.
-        if (!s.walls) {
-            if (dx > 50) dx -= 100;
-            else if (dx < -50) dx += 100;
-            if (dy > 50) dy -= 100;
-            else if (dy < -50) dy += 100;
-        }
         let r2 = dx * dx + dy * dy;
         if (r2 < 1e-12) continue;
         let r = Math.sqrt(r2);
@@ -417,18 +342,10 @@ function addExternalForces(/** @type {State} */ s) {
 
 function handleBCs(/** @type {State} */ s, /** @type {any} */ params) {
     for (let i = 0; i < s.n; i++) {
-        if (params.walls) {
-            // Reflective walls
-            if (s.x[i] < s.sigma / 2) { s.x[i] = s.sigma / 2; s.vx[i] *= -1; }
-            if (s.x[i] > 100 - s.sigma / 2) { s.x[i] = 100 - s.sigma / 2; s.vx[i] *= -1; }
-            if (s.y[i] < s.sigma / 2) { s.y[i] = s.sigma / 2; s.vy[i] *= -1; }
-            if (s.y[i] > 100 - s.sigma / 2) { s.y[i] = 100 - s.sigma / 2; s.vy[i] *= -1; }
-        } else {
-            // Periodic boundaries
-            if (s.x[i] < 0) s.x[i] += 100;
-            if (s.x[i] > 100) s.x[i] -= 100;
-            if (s.y[i] < 0) s.y[i] += 100;
-            if (s.y[i] > 100) s.y[i] -= 100;
-        }
+        // Reflective walls
+        if (s.x[i] < s.sigma / 2) { s.x[i] = s.sigma / 2; s.vx[i] *= -1; }
+        if (s.x[i] > 100 - s.sigma / 2) { s.x[i] = 100 - s.sigma / 2; s.vx[i] *= -1; }
+        if (s.y[i] < s.sigma / 2) { s.y[i] = s.sigma / 2; s.vy[i] *= -1; }
+        if (s.y[i] > 100 - s.sigma / 2) { s.y[i] = 100 - s.sigma / 2; s.vy[i] *= -1; }
     }
 }
