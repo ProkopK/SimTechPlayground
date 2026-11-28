@@ -32,11 +32,19 @@ Entry format: bold title, a short description, optional `_claimed: <name>_`, opt
 
 - **Add pressure view**: visualize pressure in addition to velocity and vorticity.
 
+### Lennard-Jones fluid
+
+- **Implement Nose-Hoover**: The Lowe-Anderson thermostat has problems with low densities. Implement Nose-Hoover to stabilize.
+
+- **Use tools from src/lib**: rewrite the plots and possibly the velocity verlet algorithm to use the helpers from src/lib.
+
 ## Metrics, charts and input parameters
 
 - **2D sliders**: support for 2D sliders (e.g. ising model like https://www.youtube.com/watch?v=itRV2jEtV8Q)
 
 - **Constant slider length**: the slider length depends on the length of the label
+
+- **Hardcoded y-range of charts**: give a fixed y-range of data to eliminate frequent scale readjustments (see e.g. speed distribution in Lennard-Jones).
 
 ## Shell and runner
 
