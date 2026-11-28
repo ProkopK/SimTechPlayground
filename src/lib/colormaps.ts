@@ -36,6 +36,20 @@ export const viridis = makeColormap([
   [253, 231, 37],
 ]);
 
+// #0d0887, #2a0393, #52057a, #7e1557, #a82144, #d24620, #fd8226, #f8bc23, #f0f921
+/** blue → purple → orange → yellow. For continues high → low transition (e.g. speed) */
+export const plasma = makeColormap([
+    [13, 8, 135],
+    [42, 3, 147],
+    [82, 5, 122],
+    [126, 21, 87],
+    [168, 33, 68],
+    [210, 70, 32],
+    [253, 130, 38],
+    [248, 188, 35],
+    [240, 249, 33],
+]);
+
 // #2166ac, #92c5de, #f7f7f7, #f4a582, #b2182b
 /** Diverging blue → white → red. For signed values (e.g. spin, vorticity), centered at 0. */
 export const blueWhiteRed = makeColormap([

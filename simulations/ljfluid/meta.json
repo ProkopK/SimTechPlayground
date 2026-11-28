@@ -1,0 +1,9 @@
+{
+  "title": { "de": "Lennard-Jones-Flüssigkeit: Fluidsimulation auf Molekularebene", "en": "Lennard-Jones fluid: molecular-level fluid simulation" },
+  "description": {
+    "de": "Hast du schon einmal einer Flüssigkeit beim Verdampfen zugesehen?",
+    "en": "Have you ever watched a liquid evaporate?"
+  },
+  "tags": ["fluids", "statphys"],
+  "order": 100
+}
