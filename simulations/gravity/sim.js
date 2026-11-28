@@ -63,8 +63,8 @@ export default {
   presets: {
     solar: { label: { de: "Sonne mit Planeten", en: "Sun and planets" }, state: solarSystem },
     binary: { label: { de: "Doppelstern mit Planet", en: "Binary star with planet" }, state: binaryStar },
-    cluster: { label: { de: "Zufälliger Haufen", en: "Random cluster" }, params: { merge: true }, state: cluster },
-    figure8: { label: { de: "Achter-Bahn (3 Körper)", en: "Figure eight (3 bodies)" }, params: { merge: false }, state: figureEight },
+    cluster: { label: { de: "Zufälliger Haufen", en: "Random cluster" }, state: cluster },
+    figure8: { label: { de: "Achter-Bahn (3 Körper)", en: "Figure eight (3 bodies)" }, state: figureEight },
   },
 
   metrics: {
@@ -111,7 +111,7 @@ export default {
       // Launch relative to what you see: add the velocity of the center of mass.
       const [vx, vy] = params.follow ? centerOfMassVelocity(s) : [0, 0];
       s.G = params.G;
-      addBody(s, x0, y0, vx + (x1 - x0) * LAUNCH_FACTOR, vy + (y1 - y0) * LAUNCH_FACTOR, params.mass);
+      addBody(s, x0, y0, vx + (x0 - x1) * LAUNCH_FACTOR, vy + (y0 - y1) * LAUNCH_FACTOR, params.mass);
       s.computeAcc(s.pos, s.acc);
       s.drag = null;
     }
@@ -156,12 +156,14 @@ export default {
       ctx.fill();
       ctx.beginPath();
       ctx.moveTo(x0, y0);
-      ctx.lineTo(x1, y1);
-      const angle = Math.atan2(y1 - y0, x1 - x0);
+      const x1w = 0.5 * (x0 - x1) + x0;
+      const y1w = 0.5 * (y0 - y1) + y0;
+      ctx.lineTo(x1w, y1w);
+      const angle = Math.atan2(y0 - y1, x0 - x1);
       const head = 10 * px;
-      ctx.moveTo(x1 - head * Math.cos(angle - 0.4), y1 - head * Math.sin(angle - 0.4));
-      ctx.lineTo(x1, y1);
-      ctx.lineTo(x1 - head * Math.cos(angle + 0.4), y1 - head * Math.sin(angle + 0.4));
+      ctx.moveTo(x1w - head * Math.cos(angle - 0.4), y1w - head * Math.sin(angle - 0.4));
+      ctx.lineTo(x1w, y1w);
+      ctx.lineTo(x1w - head * Math.cos(angle + 0.4), y1w - head * Math.sin(angle + 0.4));
       ctx.stroke();
     }
   },

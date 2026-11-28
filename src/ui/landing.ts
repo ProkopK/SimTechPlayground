@@ -3,9 +3,10 @@ import { onLangChange, t, text } from "../i18n";
 import { simulations, type SimEntry } from "../registry";
 import { simHref } from "../router";
 import { el } from "./dom";
+import { createFooter } from "./footer";
 import { createTopbar } from "./topbar";
 
-function tile(sim: SimEntry): HTMLElement {
+export function tile(sim: SimEntry): HTMLElement {
   const image = sim.thumbnail
     ? el("img", { class: "tile__img", src: sim.thumbnail, alt: "", loading: "lazy" })
     : el("div", { class: "tile__img tile__img--placeholder" });
@@ -46,6 +47,7 @@ export function mountLanding(root: HTMLElement): () => void {
         ),
         el("section", { class: "tiles" }, ...simulations.map(tile)),
       ),
+      createFooter(),
     );
   };
   render();

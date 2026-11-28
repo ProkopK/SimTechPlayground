@@ -1,13 +1,15 @@
 import { getLang, onLangChange, t, text } from "../i18n";
-import { getSimulation } from "../registry";
+import { getSimulation, simulations } from "../registry";
 import { createCanvas2D, downloadThumbnail } from "../runner/canvas2d";
 import { attachPointer } from "../runner/pointer";
 import { createRunner, type Runner, type SimView } from "../runner/runner";
 import type { Simulation } from "../types";
 import { createControls } from "./controls";
 import { el } from "./dom";
+import { createFooter } from "./footer";
 import { createFullscreen } from "./fullscreen";
 import { renderMarkdown } from "./info";
+import { tile } from "./landing";
 import { createMetrics } from "./metrics";
 import { createTopbar } from "./topbar";
 
@@ -28,12 +30,19 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   const stage = el("div", { class: "sim-stage" }, el("p", { class: "message" }, t("sim.loading")));
   const controlsSlot = el("div");
   const metricsSlot = el("div");
-  const infoSlot = el("section", { class: "sim-info" });
-  const side = el("aside", { class: "sim-side" }, title, controlsSlot, metricsSlot, infoSlot);
+  const side = el("aside", { class: "sim-side" }, title, controlsSlot, metricsSlot);
+  const top = el("div", { class: "sim-top" }, stage, side);
+  // Below the fold: explanation and related simulations. The heading is static so it
+  // peeks out under the simulation right away and shows that scrolling reveals more.
+  const infoHeading = el("h2");
+  const infoBody = el("div");
+  const relatedSlot = el("section", { class: "sim-related" });
+  const below = el("div", { class: "sim-below" }, el("section", { class: "sim-info" }, infoHeading, infoBody), relatedSlot);
   const topbarSlot = el("div", { class: "topbar-slot" });
-  const page = el("main", { class: "sim-page" }, stage, side);
-  root.replaceChildren(topbarSlot, page);
-  const fullscreen = createFullscreen(page);
+  const footerSlot = el("div");
+  const page = el("main", { class: "sim-page" }, top, below);
+  root.replaceChildren(topbarSlot, page, footerSlot);
+  const fullscreen = createFullscreen(top);
 
   let runner: Runner | undefined;
   let controls: { dispose(): void } | undefined;
@@ -43,12 +52,23 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
   /** (Re)build everything that shows translated text; the running simulation is kept. */
   function renderTexts() {
     topbarSlot.replaceChildren(createTopbar(back()));
+    footerSlot.replaceChildren(createFooter(id));
     title.textContent = text(entry!.meta.title);
     document.title = `${text(entry!.meta.title)} · ${t("site.title")}`;
     controls?.dispose();
     if (runner) controls = createControls(controlsSlot, runner, [fullscreen.button()]);
     metrics?.relabel();
+    infoHeading.textContent = t("sim.explanation");
     renderInfo();
+    renderRelated();
+  }
+
+  /** Other simulations sharing a tag with this one; hidden if there are none. */
+  function renderRelated() {
+    const tags = entry!.meta.tags ?? [];
+    const related = simulations.filter((s) => s.id !== id && s.meta.tags?.some((tag) => tags.includes(tag)));
+    relatedSlot.hidden = related.length === 0;
+    relatedSlot.replaceChildren(el("h2", {}, t("sim.related")), el("div", { class: "tiles" }, ...related.map(tile)));
   }
 
   let infoRequest = 0;
@@ -57,8 +77,7 @@ export function mountSimPage(root: HTMLElement, id: string): () => void {
     try {
       const html = await renderMarkdown(await entry!.loadInfo(getLang()));
       if (request !== infoRequest || disposed) return;
-      infoSlot.innerHTML = html;
-      infoSlot.prepend(el("h2", {}, t("sim.explanation")));
+      infoBody.innerHTML = html;
     } catch (error) {
       console.error(error);
     }

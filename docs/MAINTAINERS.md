@@ -7,7 +7,7 @@ Each year one person is responsible for SimTech Playground. This page is the han
 - [ ] New maintainer has admin (or at least maintain) access to the GitHub repository
 - [ ] Walk through this page together, then deploy once (see below) to make sure it works
 - [ ] Update the "Current maintainer" line below
-- [ ] Look at open issues, open pull requests and `docs/FINETUNING.md` together
+- [ ] Look at open issues, open pull requests and [plans/](../plans/) together
 
 **Current maintainer:** _name, year_ (update on handover)
 
@@ -48,6 +48,11 @@ CI already checks types, required files, metadata, the parameter definitions, an
 
 Use the checklist in [CONTRIBUTING.md](../CONTRIBUTING.md#10-checklist-before-opening-a-pull-request) as the review template. Prefer merging and improving in a follow-up over letting a PR sit for months.
 
+## Ideas, todos and issues
+
+- **Team members** add and pick work in [plans/ideas.md](../plans/ideas.md) (new simulations) and [plans/todos.md](../plans/todos.md) (everything else). Claiming = adding `_claimed: <name>_` under the entry; finishing = deleting the entry.
+- **People outside the team** open GitHub Issues via the forms (bug report, simulation request). Triage them now and then: fix small bugs directly, move ideas worth keeping into the lists (link the issue), and close the issue.
+
 ## Updating dependencies
 
 Do this about once per semester, on a branch, and only when nothing important (a fair) is coming up in the next days.
@@ -80,8 +85,9 @@ GitHub Actions versions (`actions/checkout@v…` etc. in `.github/workflows/`) a
 | Pages and UI parts | [src/ui/](../src/ui/) |
 | UI strings and topic tags | [src/i18n/de.json](../src/i18n/de.json), [src/i18n/en.json](../src/i18n/en.json) |
 | Validation and smoke test | [scripts/check-sims.js](../scripts/check-sims.js) |
-| Implementation history and decisions | [docs/PLAN.md](PLAN.md) |
-| Ideas and polish not yet done | [docs/FINETUNING.md](FINETUNING.md), [ideas.md](../ideas.md) |
+| Simulation ideas and open todos | [plans/ideas.md](../plans/ideas.md), [plans/todos.md](../plans/todos.md) |
+| Issue forms (bug report, simulation request) | [.github/ISSUE_TEMPLATE/](../.github/ISSUE_TEMPLATE/) |
+| Implementation history and decisions | git history (`git log`), pull requests |
 
 ## Before a fair or open day
 

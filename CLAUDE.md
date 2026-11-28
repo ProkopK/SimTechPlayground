@@ -8,7 +8,7 @@ A static website (no backend) with small interactive simulations from the Simula
 
 ## Languages
 
-- **English**: code, identifiers, comments, commit messages, PRs, issues, and all docs (`docs/*.md`, README, CONTRIBUTING, this file).
+- **English**: code, identifiers, comments, commit messages, PRs, issues, and all docs (`docs/*.md`, `plans/*.md`, README, CONTRIBUTING, this file). Exception: the issue forms are bilingual (DE/EN), because website visitors use them.
 - **German first** for website content: UI strings, simulation titles, descriptions, parameter labels, explanation texts (`info.de.md` is required, `info.en.md` optional). Every user-facing `Text` is `{ de: "...", en: "..." }` or a language-neutral string. Missing English must fall back to German, never error.
 
 ## Architecture (decided; don't reopen without a real blocker)
@@ -30,9 +30,11 @@ A static website (no backend) with small interactive simulations from the Simula
 
 ## Way of working
 
-- **Plan in the repo**: [docs/PLAN.md](docs/PLAN.md). Keep it current: check off steps, justify plan changes in its "Plan changes" section.
-- **Small steps, one commit each**, with a meaningful English message. Each commit builds and passes `npm run check`.
-- **Important things first, polish later.** Anything noticed that isn't part of the current task goes into [docs/FINETUNING.md](docs/FINETUNING.md) instead of being implemented right away.
+- **Tasks live in [plans/](plans/)**: [plans/ideas.md](plans/ideas.md) (new simulations) and [plans/todos.md](plans/todos.md) (everything else), one bullet per entry, grouped by topic. You'll usually be pointed at one entry. Its "Done when" criteria, if present, are the success criteria. If it's vague, ask before starting.
+- **When an entry is done, delete it** in the same commit or PR (git history is the record). Don't touch entries claimed by someone else (`_claimed: <name>_`).
+- **Small steps, one commit each**, with a meaningful English message. Each commit builds and passes `npm run check`. For multi-step work, state the plan before starting; put decisions worth keeping in the commit/PR message.
+- **Important things first, polish later.** Anything noticed that isn't part of the current task goes as a new entry under the matching section of [plans/todos.md](plans/todos.md) (or [plans/ideas.md](plans/ideas.md)) instead of being implemented right away.
+- **GitHub Issues** come from people outside the team (bug reports, simulation requests; forms in [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/)). Team members use the lists in `plans/`.
 - **Ask instead of assuming** when something is unclear or would break the "keep it simple" frame.
 - Verify in the browser: Chrome and Firefox, desktop and phone view (touch emulation), clean console.
 
