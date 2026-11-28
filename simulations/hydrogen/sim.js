@@ -393,6 +393,7 @@ export default {
   autoRotate: true,
   dt: 1 / 3, // atomic units of time (≈ 8 attoseconds)
   stepsPerSecond: 60, // 20 atomic time units per second: 1s + 2p oscillates in under a second
+  timeUnit: { unit: "fs", scale: AU_TIME_FS }, // chart time axis in femtoseconds
   maxSpeed: 10,
 
   params: {

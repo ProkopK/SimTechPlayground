@@ -22,7 +22,7 @@ Jeder Körper spürt die Kräfte aller anderen. Die Kraft bestimmt nach $F = m \
 Die Zeit läuft in kleinen Schritten $\Delta t$ ab. In jedem Schritt werden alle Kräfte berechnet und die Körper ein Stückchen weiterbewegt. Wie genau man das macht, ist entscheidend:
 
 - Das einfachste Verfahren (Euler) macht in jedem Schritt einen winzigen Fehler. Die Fehler summieren sich, Planeten spiralen langsam nach außen, und die Energie wächst, obwohl sie eigentlich erhalten bleiben muss.
-- Wir verwenden das **Velocity-Verlet-Verfahren**. Es ist kaum aufwendiger, hält aber die **Gesamtenergie** über sehr lange Zeit stabil. Beobachte den Messwert: Er bleibt konstant, solange nichts zusammenstößt.
+- Wir verwenden das **Velocity-Verlet-Verfahren**. Es ist kaum aufwendiger, hält aber die **Gesamtenergie** über sehr lange Zeit stabil. Beobachte das Energie-Diagramm: Bewegungsenergie $E_\text{kin}$ und Lageenergie $E_\text{pot}$ schwanken, ihre Summe $E_\text{tot}$ bleibt aber konstant, solange nichts zusammenstößt.
 
 Beim Zusammenstoß verschmelzen zwei Körper. Masse und Impuls bleiben dabei erhalten, Bewegungsenergie wird aber zu Wärme. Deshalb springt die Gesamtenergie dann.
 

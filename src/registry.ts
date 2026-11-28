@@ -24,6 +24,12 @@ const infos = import.meta.glob<string>(["/simulations/*/info.*.md", "!/simulatio
   query: "?raw",
   import: "default",
 });
+// Images that explanation texts can embed. Only their URLs are bundled eagerly.
+const images = import.meta.glob<string>(["/simulations/*/*.{png,jpg,jpeg,webp,svg,gif}", "!/simulations/_*/**"], {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
 
 export interface SimEntry {
   id: string;
@@ -63,4 +69,19 @@ export const simulations: SimEntry[] = Object.entries(metas)
 
 export function getSimulation(id: string): SimEntry | undefined {
   return simulations.find((s) => s.id === id);
+}
+
+/**
+ * Resolves a URL from simulation `id`'s explanation text, written relative to its
+ * `info.*.md` (so it also works in GitHub's file preview):
+ * "../heat/" → "#/sim/heat", "figure.webp" → bundled image URL.
+ * Absolute URLs, anchors and anything unknown are returned unchanged.
+ */
+export function resolveInfoUrl(id: string, href: string): string {
+  if (/^([a-z][a-z0-9+.-]*:|#|\/)/i.test(href)) return href;
+  const path = new URL(href, `http://x/simulations/${id}/`).pathname;
+  if (images[path]) return images[path];
+  const sim = /^\/simulations\/([^/]+)\/?$/.exec(path)?.[1];
+  if (sim && getSimulation(sim)) return `#/sim/${sim}`;
+  return href;
 }

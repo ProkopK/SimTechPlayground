@@ -63,12 +63,10 @@ export default {
 
   metrics: {
     distance: {
-      label: { de: "Abstand Bahn 1 ↔ 2 (Zehnerlogarithmus)", en: "Distance trajectory 1 ↔ 2 (log₁₀)" },
-      value: (s) => {
-        if (s.count < 2) return 0;
-        const d = Math.hypot(s.y[3] - s.y[0], s.y[4] - s.y[1], s.y[5] - s.y[2]);
-        return Math.log10(d);
-      },
+      label: { de: "Abstand Bahn 1 ↔ 2", en: "Distance trajectory 1 ↔ 2" },
+      // null = "doesn't apply" (shown as –): with a single trajectory there is no distance.
+      value: (s) => (s.count < 2 ? null : Math.hypot(s.y[3] - s.y[0], s.y[4] - s.y[1], s.y[5] - s.y[2])),
+      yScale: "log", // grows from 10⁻⁴ to about 10¹: exponential growth becomes a straight line
       digits: 2,
     },
   },
